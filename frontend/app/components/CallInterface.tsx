@@ -37,6 +37,7 @@ export default function CallInterface({
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [hasSpokenGreeting, setHasSpokenGreeting] = useState(false);
   const [shouldStartListening, setShouldStartListening] = useState(false);
+  const [isAvatarLoaded, setIsAvatarLoaded] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -45,13 +46,13 @@ export default function CallInterface({
     return () => clearInterval(timer);
   }, []);
 
-  // Speak the initial greeting when component mounts
+  // Speak the initial greeting ONLY when avatar is loaded
   useEffect(() => {
-    if (!hasSpokenGreeting) {
+    if (isAvatarLoaded && !hasSpokenGreeting) {
       speakInitialGreeting();
       setHasSpokenGreeting(true);
     }
-  }, [hasSpokenGreeting]);
+  }, [isAvatarLoaded, hasSpokenGreeting]);
 
   const speakInitialGreeting = async () => {
     const greeting = "Hello! I'm your AI Doctor. How are you feeling today?";
@@ -161,8 +162,23 @@ export default function CallInterface({
       <div className="flex-1 flex relative">
         {/* Main Avatar Area - Centered */}
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-full max-w-3xl aspect-square">
-            <Avatar background={bgClass} />
+          <div className="w-full max-w-3xl aspect-square relative">
+            {/* Loading indicator */}
+            {!isAvatarLoaded && (
+              <div className="absolute inset-0 flex items-center justify-center bg-white/50 backdrop-blur-sm rounded-lg z-10">
+                <div className="text-center">
+                  <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
+                  <p className="text-gray-600 font-medium">
+                    Loading AI Doctor...
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <Avatar
+              background={bgClass}
+              onLoad={() => setIsAvatarLoaded(true)}
+            />
           </div>
         </div>
 

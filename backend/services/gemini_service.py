@@ -27,7 +27,7 @@ class GeminiService:
             "temperature": 0.7,
             "top_p": 0.95,
             "top_k": 40,
-            "max_output_tokens": 500,  # Allow longer responses for complete thoughts
+            "max_output_tokens": 800,  # Allow longer responses for complete thoughts
             "candidate_count": 1,
         }
         
