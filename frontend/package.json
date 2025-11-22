@@ -11,7 +11,8 @@
   "dependencies": {
     "next": "16.0.3",
     "react": "19.2.0",
-    "react-dom": "19.2.0"
+    "react-dom": "19.2.0",
+    "face-api.js": "^0.22.2"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
