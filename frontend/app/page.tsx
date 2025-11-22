@@ -16,18 +16,15 @@ type ViewState = "landing" | "setup" | "call" | "summary";
 export default function Home() {
   const [currentView, setCurrentView] = useState<ViewState>("landing");
   const [selectedBg, setSelectedBg] = useState("bg1"); // Default background ID
+  const [conversationData, setConversationData] = useState<any[]>([]); // Store conversation for summary
 
   const renderView = () => {
     switch (currentView) {
       case "landing":
-        return (
-          <LandingPage 
-            onGetStarted={() => setCurrentView("setup")} 
-          />
-        );
+        return <LandingPage onGetStarted={() => setCurrentView("setup")} />;
       case "setup":
         return (
-          <SetupPage 
+          <SetupPage
             onConnect={() => setCurrentView("call")}
             selectedBg={selectedBg}
             setSelectedBg={setSelectedBg}
@@ -36,15 +33,19 @@ export default function Home() {
         );
       case "call":
         return (
-          <CallInterface 
-            onEndCall={() => setCurrentView("summary")}
+          <CallInterface
+            onEndCall={(messages) => {
+              setConversationData(messages);
+              setCurrentView("summary");
+            }}
             selectedBg={selectedBg}
           />
         );
       case "summary":
         return (
-          <SummaryPage 
-            onBackToMain={() => setCurrentView("landing")} 
+          <SummaryPage
+            onBackToMain={() => setCurrentView("landing")}
+            conversationData={conversationData}
           />
         );
       default:

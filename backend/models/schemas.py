@@ -134,9 +134,15 @@ class EmotionStats(BaseModel):
     dominant_emotion: str = Field(..., description="Most frequent emotion")
 
 
+class SummaryData(BaseModel):
+    """Structured summary data"""
+    overview: str = Field(..., description="Brief overview of consultation")
+    recommendations: List[str] = Field(..., description="List of recommendations")
+
+
 class InsightsResponse(BaseModel):
     """Response model for insights endpoint"""
-    summary: str = Field(..., description="Conversation summary")
+    summary: SummaryData = Field(..., description="Structured conversation summary")
     emotion_chart: List[EmotionChartData] = Field(
         ...,
         description="Emotion data for visualization"
@@ -149,7 +155,14 @@ class InsightsResponse(BaseModel):
     class Config:
         json_schema_extra = {
             "example": {
-                "summary": "Patient discussed fatigue and sleep issues...",
+                "summary": {
+                    "overview": "Patient discussed fatigue and sleep issues...",
+                    "recommendations": [
+                        "Get 7-8 hours of sleep per night",
+                        "Reduce caffeine intake after 2pm",
+                        "Follow up in 2 weeks"
+                    ]
+                },
                 "emotion_chart": [
                     {"timestamp": "2025-11-22T10:00:00Z", "emotion": "sad"}
                 ],

@@ -14,9 +14,10 @@ interface AvatarProps {
   audioUrl?: string;
   background?: string;
   avatarId?: string;
+  onLoad?: () => void;
 }
 
-export default function Avatar({ isSpeaking = false, audioUrl, background, avatarId = "doctorm" }: AvatarProps) {
+export default function Avatar({ isSpeaking = false, audioUrl, background, avatarId = "doctorm", onLoad }: AvatarProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
@@ -239,6 +240,9 @@ export default function Avatar({ isSpeaking = false, audioUrl, background, avata
       });
 
       setIsLoaded(true);
+      
+      // Notify parent that avatar is loaded
+      onLoad?.();
 
       // Start animation loop
       animate();
