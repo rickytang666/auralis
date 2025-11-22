@@ -6,7 +6,7 @@ import Avatar from "./Avatar";
 import AudioController from "./AudioController";
 
 interface CallInterfaceProps {
-  onEndCall: () => void;
+  onEndCall: (messages: Message[]) => void;
   selectedBg: string;
 }
 
@@ -147,7 +147,7 @@ export default function CallInterface({
       {/* Header Controls */}
       <div className="flex justify-between items-center mb-6 z-10">
         <button
-          onClick={onEndCall}
+          onClick={() => onEndCall(messages)}
           className="px-6 py-2 bg-red-500 text-white rounded-full text-sm font-bold hover:bg-red-600 transition-colors shadow-lg hover:shadow-red-200"
         >
           END CALL

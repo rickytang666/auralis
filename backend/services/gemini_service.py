@@ -96,8 +96,9 @@ Keep responses conversational and concise (2-3 sentences max)."""
             # Format conversation for summarization
             conversation_text = []
             for msg in conversation:
-                role = "Patient" if msg.role == "user" else "Doctor"
-                content = msg.content
+                # Handle both dict and object formats
+                role = "Patient" if (msg.get("role") if isinstance(msg, dict) else msg.role) == "user" else "Doctor"
+                content = msg.get("content") if isinstance(msg, dict) else msg.content
                 conversation_text.append(f"{role}: {content}")
 
             formatted_conversation = "\n".join(conversation_text)
