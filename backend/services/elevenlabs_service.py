@@ -1,12 +1,12 @@
 """
-ElevenLabs TTS service - handles text-to-speech conversion
+ElevenLabs service - handles speech-to-text and text-to-speech conversion
 """
 import os
 from typing import Dict, Optional, AsyncIterator, List
 
 
 class ElevenLabsService:
-    """Service for ElevenLabs text-to-speech API"""
+    """Service for ElevenLabs speech-to-text and text-to-speech API"""
     
     def __init__(self):
         """Initialize ElevenLabs service with API key"""
@@ -72,6 +72,26 @@ class ElevenLabsService:
     def _get_voice_id(self, voice_id: Optional[str]) -> str:
         """Get voice ID with fallback to default"""
         return voice_id or self.default_voice_id
+    
+    async def speech_to_text(
+        self,
+        audio_data: bytes
+    ) -> str:
+        """
+        Convert speech to text using ElevenLabs
+        
+        Args:
+            audio_data: Audio file bytes
+            
+        Returns:
+            Transcribed text
+        """
+        # TODO: Implement ElevenLabs STT API call
+        # - Send audio to ElevenLabs API
+        # - Get transcribed text response
+        # - Return text
+        
+        return ""
     
     async def list_voices(self) -> List[Dict]:
         """

@@ -1,6 +1,7 @@
 /**
  * AudioController Component
- * Handles speech recognition (input) and audio playback (output)
+ * Handles audio recording (input) and audio playback (output)
+ * Uses ElevenLabs STT/TTS via backend API
  */
 "use client";
 
@@ -22,53 +23,57 @@ export default function AudioController({
   const audioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
-    // TODO: Initialize Web Speech API
-    initializeSpeechRecognition();
+    // TODO: Initialize audio recorder
+    // recognitionRef.current = new AudioRecorder();
 
     return () => {
-      // TODO: Cleanup speech recognition
+      // TODO: Cleanup audio recorder
       if (recognitionRef.current) {
-        recognitionRef.current.stop();
+        // cleanup
       }
     };
   }, []);
 
-  const initializeSpeechRecognition = () => {
-    // TODO: Check browser support
-    // if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-    //   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    //   recognitionRef.current = new SpeechRecognition();
-    //   recognitionRef.current.continuous = true;
-    //   recognitionRef.current.interimResults = true;
-    //
-    //   recognitionRef.current.onresult = handleSpeechResult;
-    //   recognitionRef.current.onerror = handleSpeechError;
-    // }
-  };
-
-  const handleSpeechResult = (event: any) => {
-    // TODO: Process speech recognition results
-    // TODO: Extract final transcript
+  const handleRecordingComplete = async (audioBlob: Blob) => {
+    // TODO: Send audio to backend /api/stt
+    // TODO: Get transcribed text
     // TODO: Call onTranscript callback
+    try {
+      const formData = new FormData();
+      formData.append("audio", audioBlob);
+
+      const response = await fetch("http://localhost:8000/api/stt", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+      if (data.text) {
+        setTranscript(data.text);
+        onTranscript?.(data.text);
+      }
+    } catch (error) {
+      console.error("Transcription error:", error);
+    }
   };
 
-  const handleSpeechError = (event: any) => {
-    console.error("Speech recognition error:", event.error);
+  const startListening = async () => {
+    // TODO: Start audio recording
+    // if (recognitionRef.current) {
+    //   await recognitionRef.current.startRecording();
+    //   setIsListening(true);
+    // }
+    setIsListening(true);
+  };
+
+  const stopListening = async () => {
+    // TODO: Stop recording and process audio
+    // if (recognitionRef.current) {
+    //   const audioBlob = await recognitionRef.current.stopRecording();
+    //   await handleRecordingComplete(audioBlob);
+    //   setIsListening(false);
+    // }
     setIsListening(false);
-  };
-
-  const startListening = () => {
-    if (recognitionRef.current) {
-      recognitionRef.current.start();
-      setIsListening(true);
-    }
-  };
-
-  const stopListening = () => {
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-      setIsListening(false);
-    }
   };
 
   const playAudio = async (audioUrl: string) => {

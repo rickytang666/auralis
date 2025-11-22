@@ -1,15 +1,41 @@
 """
-Text-to-Speech router - handles ElevenLabs TTS
+Audio router - handles ElevenLabs STT and TTS
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, UploadFile, File
 from fastapi.responses import StreamingResponse
 from models.schemas import TTSRequest, TTSResponse
 from services.elevenlabs_service import ElevenLabsService
+from pydantic import BaseModel
 
 router = APIRouter()
 
 # Initialize service
 tts_service = ElevenLabsService()
+
+
+class STTResponse(BaseModel):
+    """Response model for speech-to-text"""
+    text: str
+
+
+@router.post("/stt", response_model=STTResponse)
+async def speech_to_text(audio: UploadFile = File(...)):
+    """
+    Convert speech to text using ElevenLabs
+    
+    Args:
+        audio: Audio file upload
+        
+    Returns:
+        STTResponse with transcribed text
+    """
+    try:
+        audio_data = await audio.read()
+        text = await tts_service.speech_to_text(audio_data)
+        
+        return STTResponse(text=text)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/tts", response_model=TTSResponse)
