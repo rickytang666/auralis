@@ -26,7 +26,7 @@
 
 ### 4. voice interaction
 
-- speech-to-text for patient input
+- speech-to-text for patient input (elevenlabs)
 - text-to-speech for doctor responses (elevenlabs)
 - natural conversation flow
 
@@ -127,13 +127,16 @@
 **core features:**
 
 - frontend audio capture
-  - web speech api integration
-  - speech-to-text processing
+  - browser MediaRecorder API integration
+  - audio recording and upload
   - microphone permissions handling
 - audio controller component
   - mute/unmute controls
   - recording state management
   - audio visualization
+- elevenlabs stt integration
+  - speech-to-text conversion
+  - audio processing
 - elevenlabs tts integration
   - text-to-speech conversion
   - audio streaming/playback
@@ -145,8 +148,9 @@
 
 **deliverables:**
 
+- `/api/stt` endpoint
 - `/api/tts` endpoint
-- working speech recognition
+- working audio recording and transcription
 - audio playback with avatar sync
 
 ---

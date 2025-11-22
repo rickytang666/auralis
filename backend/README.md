@@ -78,7 +78,7 @@ backend/
 │   └── insights.py        # Analytics endpoints
 ├── services/
 │   ├── gemini_service.py       # Google Gemini integration
-│   ├── elevenlabs_service.py   # ElevenLabs TTS integration
+│   ├── elevenlabs_service.py   # ElevenLabs STT and TTS integration
 │   └── emotion_analyzer.py     # Emotion analysis logic
 └── models/
     └── schemas.py         # Pydantic models
@@ -94,7 +94,7 @@ backend/
 Each service file contains TODO comments for implementation:
 
 - [ ] Implement Gemini API integration
-- [ ] Implement ElevenLabs TTS integration
+- [ ] Implement ElevenLabs STT and TTS integration
 - [ ] Implement emotion mismatch detection
 - [ ] Add error handling and logging
 - [ ] Add rate limiting

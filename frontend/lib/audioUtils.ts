@@ -1,50 +1,74 @@
 /**
- * Audio utilities for Web Speech API and audio playback
+ * Audio utilities for recording and playback (ElevenLabs STT/TTS via backend)
  */
-
-export interface SpeechRecognitionResult {
-  transcript: string;
-  isFinal: boolean;
-  confidence: number;
-}
 
 /**
- * Initialize Web Speech API
+ * Audio recorder class for capturing microphone input
  */
-export function initializeSpeechRecognition(
-  onResult: (result: SpeechRecognitionResult) => void,
-  onError: (error: string) => void
-): SpeechRecognition | null {
-  // Check browser support
-  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-    onError('Speech recognition not supported in this browser');
-    return null;
+export class AudioRecorder {
+  private mediaRecorder: MediaRecorder | null = null;
+  private audioChunks: Blob[] = [];
+  private stream: MediaStream | null = null;
+
+  /**
+   * Start recording audio from microphone
+   */
+  async startRecording(): Promise<void> {
+    try {
+      this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      this.mediaRecorder = new MediaRecorder(this.stream);
+      this.audioChunks = [];
+
+      this.mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          this.audioChunks.push(event.data);
+        }
+      };
+
+      this.mediaRecorder.start();
+    } catch (error) {
+      throw new Error('Failed to start recording: ' + error);
+    }
   }
 
-  // @ts-ignore - SpeechRecognition types
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  const recognition = new SpeechRecognition();
+  /**
+   * Stop recording and return audio blob
+   */
+  async stopRecording(): Promise<Blob> {
+    return new Promise((resolve, reject) => {
+      if (!this.mediaRecorder) {
+        reject(new Error('No recording in progress'));
+        return;
+      }
 
-  recognition.continuous = true;
-  recognition.interimResults = true;
-  recognition.lang = 'en-US';
+      this.mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
+        this.cleanup();
+        resolve(audioBlob);
+      };
 
-  recognition.onresult = (event: any) => {
-    const results = event.results;
-    const lastResult = results[results.length - 1];
-    
-    onResult({
-      transcript: lastResult[0].transcript,
-      isFinal: lastResult.isFinal,
-      confidence: lastResult[0].confidence
+      this.mediaRecorder.stop();
     });
-  };
+  }
 
-  recognition.onerror = (event: any) => {
-    onError(event.error);
-  };
+  /**
+   * Cleanup resources
+   */
+  private cleanup(): void {
+    if (this.stream) {
+      this.stream.getTracks().forEach(track => track.stop());
+      this.stream = null;
+    }
+    this.mediaRecorder = null;
+    this.audioChunks = [];
+  }
 
-  return recognition;
+  /**
+   * Check if currently recording
+   */
+  isRecording(): boolean {
+    return this.mediaRecorder?.state === 'recording';
+  }
 }
 
 /**

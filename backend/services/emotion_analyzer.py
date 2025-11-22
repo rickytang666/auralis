@@ -3,6 +3,7 @@ Emotion analyzer service - detects emotion mismatches and patterns
 """
 from typing import Dict, List, Optional
 from datetime import datetime
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 
 class EmotionAnalyzer:
@@ -11,9 +12,11 @@ class EmotionAnalyzer:
     def __init__(self):
         """Initialize emotion analyzer"""
         self.emotion_categories = [
-            "neutral", "happy", "sad", "angry", 
+            "neutral", "happy", "sad", "angry",
             "fearful", "disgusted", "surprised"
         ]
+        # Initialize sentiment analyzer
+        self.sentiment_analyzer = SentimentIntensityAnalyzer()
     
     def analyze_mismatch(
         self,
@@ -22,26 +25,61 @@ class EmotionAnalyzer:
     ) -> Dict[str, any]:
         """
         Analyze potential mismatch between message content and facial emotion
-        
+
         Args:
             message: User's text message
             detected_emotion: Emotion detected from face-api.js
-            
+
         Returns:
             Dict containing mismatch analysis and context
         """
-        # TODO: Implement emotion mismatch detection
-        # - Analyze sentiment of message text
-        # - Compare with detected facial emotion
-        # - Flag significant mismatches (e.g., "I'm fine" + sad face)
-        # - Provide context for Gemini to address
-        
+        # Analyze text sentiment using VADER
+        sentiment_scores = self.sentiment_analyzer.polarity_scores(message)
+
+        # Determine text sentiment based on compound score
+        compound = sentiment_scores['compound']
+        if compound >= 0.05:
+            text_sentiment = "positive"
+        elif compound <= -0.05:
+            text_sentiment = "negative"
+        else:
+            text_sentiment = "neutral"
+
+        # Map facial emotion to expected sentiment
+        emotion_to_sentiment = {
+            "happy": "positive",
+            "surprised": "positive",  # Can be positive in medical context
+            "neutral": "neutral",
+            "sad": "negative",
+            "angry": "negative",
+            "fearful": "negative",
+            "disgusted": "negative"
+        }
+
+        expected_sentiment = emotion_to_sentiment.get(detected_emotion.lower(), "neutral")
+
+        # Detect mismatch (e.g., positive words + negative face, or vice versa)
+        has_mismatch = False
+        mismatch_type = None
+
+        if text_sentiment == "positive" and expected_sentiment == "negative":
+            has_mismatch = True
+            mismatch_type = "positive_words_negative_face"
+        elif text_sentiment == "negative" and expected_sentiment == "positive":
+            has_mismatch = True
+            mismatch_type = "negative_words_positive_face"
+
+        # Calculate confidence based on sentiment strength
+        confidence = abs(compound)
+
         return {
-            "has_mismatch": False,
-            "message_sentiment": "neutral",
+            "mismatch_detected": has_mismatch,
+            "text_sentiment": text_sentiment,
             "detected_emotion": detected_emotion,
-            "confidence": 0.0,
-            "context": ""
+            "expected_sentiment": expected_sentiment,
+            "mismatch_type": mismatch_type,
+            "confidence": confidence,
+            "sentiment_scores": sentiment_scores
         }
     
     def generate_emotion_chart(
