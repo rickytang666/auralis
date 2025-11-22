@@ -14,6 +14,7 @@ interface AudioControllerProps {
   onAssistantResponse?: (text: string) => void;
   autoStart?: boolean; // Auto-start listening when component mounts
   continuousMode?: boolean; // Automatically restart listening after AI speaks
+  currentEmotion?: string; // Current emotion detected from webcam
 }
 
 export default function AudioController({
@@ -22,6 +23,7 @@ export default function AudioController({
   onAssistantResponse,
   autoStart = false,
   continuousMode = false,
+  currentEmotion = "neutral",
 }: AudioControllerProps) {
   const [isListening, setIsListening] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -133,7 +135,7 @@ export default function AudioController({
         },
         body: JSON.stringify({
           message: userMessage,
-          emotion: "neutral", // TODO: Replace with real emotion from Person 2's face detection
+          emotion: currentEmotion, // Real emotion from webcam face detection
         }),
       });
 

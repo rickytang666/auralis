@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import Avatar from "./Avatar";
 import AudioController from "./AudioController";
+import VideoFeed from "./VideoFeed";
 
 interface CallInterfaceProps {
   onEndCall: (messages: Message[]) => void;
@@ -38,6 +39,7 @@ export default function CallInterface({
   const [hasSpokenGreeting, setHasSpokenGreeting] = useState(false);
   const [shouldStartListening, setShouldStartListening] = useState(false);
   const [isAvatarLoaded, setIsAvatarLoaded] = useState(false);
+  const [currentEmotion, setCurrentEmotion] = useState<string>("neutral");
 
   // Function to stop all audio and end call
   const handleEndCall = () => {
@@ -169,8 +171,21 @@ export default function CallInterface({
         >
           END CALL
         </button>
-        <div className="text-2xl font-mono font-medium text-gray-800 bg-white/50 backdrop-blur-sm px-4 py-1 rounded-full">
-          {formatTime(elapsedTime)}
+        <div className="flex items-center gap-4">
+          <div className="text-2xl font-mono font-medium text-gray-800 bg-white/50 backdrop-blur-sm px-4 py-1 rounded-full">
+            {formatTime(elapsedTime)}
+          </div>
+          {/* Real-time Emotion Indicator */}
+          <div className="bg-white/70 backdrop-blur-sm px-4 py-2 rounded-full shadow-lg border border-white/50">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-gray-600">
+                Emotion:
+              </span>
+              <span className="text-sm font-bold text-blue-600 capitalize animate-pulse">
+                {currentEmotion}
+              </span>
+            </div>
+          </div>
         </div>
         <div className="w-[100px]"></div> {/* Spacer for centering */}
       </div>
@@ -198,25 +213,14 @@ export default function CallInterface({
           </div>
         </div>
 
-        {/* Webcam Feed Placeholder (Bottom Left) - Kept as per original request but user said "remove left hand side box", 
-            but then said "entire page including around the webcam". 
-            I will keep the webcam overlay but remove the container box. */}
-        <div className="absolute bottom-6 left-6 w-48 h-36 bg-black/20 backdrop-blur-md rounded-xl overflow-hidden shadow-lg border border-white/20 z-10">
-          <div className="w-full h-full flex items-center justify-center">
-            <svg
-              className="w-8 h-8 text-white/50"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
-              />
-            </svg>
-          </div>
+        {/* Webcam Feed with Emotion Detection (Bottom Left) */}
+        <div className="absolute bottom-6 left-6 w-48 h-36 rounded-xl overflow-hidden shadow-lg border border-white/20 z-10">
+          <VideoFeed
+            onEmotionDetected={(emotion) => {
+              console.log("📤 CallInterface received emotion:", emotion);
+              setCurrentEmotion(emotion);
+            }}
+          />
         </div>
 
         {/* Right Side - Transcript Overlay */}
@@ -258,6 +262,7 @@ export default function CallInterface({
             onAssistantResponse={handleAssistantResponse}
             autoStart={shouldStartListening}
             continuousMode={true}
+            currentEmotion={currentEmotion}
           />
         </div>
       </div>
