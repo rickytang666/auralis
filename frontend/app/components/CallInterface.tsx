@@ -237,6 +237,7 @@ export default function CallInterface({
             <Avatar
               background={bgClass}
               onLoad={() => setIsAvatarLoaded(true)}
+              fullscreen={true}
             />
           </div>
         </div>

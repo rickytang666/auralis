@@ -12,9 +12,8 @@ interface SetupPageProps {
 }
 
 const AVATAR_OPTIONS = [
-  { id: "joe", name: "Joe", color: "bg-blue-100" },
-  { id: "mark", name: "Mark", color: "bg-green-100" },
-  { id: "sasha", name: "Sasha", color: "bg-purple-100" },
+  { id: "doctorm", name: "Doctor M", color: "bg-blue-100" },
+  { id: "doctorf", name: "Doctor F", color: "bg-purple-100" },
 ];
 
 const VOICE_OPTIONS = [
@@ -43,7 +42,10 @@ export default function SetupPage({ onConnect, selectedBg, setSelectedBg, onBack
         {/* Left Side - Avatar Preview */}
         <div className={`w-full md:w-1/2 p-8 flex flex-col items-center justify-center bg-gradient-to-br ${BG_OPTIONS.find(b => b.id === selectedBg)?.color} transition-colors duration-500 relative`}>
           <div className="w-full max-w-md aspect-square relative z-10">
-            <Avatar background={BG_OPTIONS.find(b => b.id === selectedBg)?.color} />
+            <Avatar 
+              background={BG_OPTIONS.find(b => b.id === selectedBg)?.color}
+              avatarId={selectedAvatar}
+            />
           </div>
           
           <motion.button
