@@ -49,11 +49,11 @@ class ElevenLabsService:
         try:
             voice = self._get_voice_id(voice_id)
             
-            # Generate audio using ElevenLabs client
-            audio_generator = self.client.generate(
+            # Generate audio using ElevenLabs text_to_speech
+            audio_generator = self.client.text_to_speech.convert(
+                voice_id=voice,
                 text=text,
-                voice=voice,
-                model="eleven_monolingual_v1"
+                model_id="eleven_monolingual_v1"
             )
             
             # Convert generator to bytes
@@ -88,11 +88,10 @@ class ElevenLabsService:
             voice = self._get_voice_id(voice_id)
             
             # Generate streaming audio
-            audio_stream = self.client.generate(
+            audio_stream = self.client.text_to_speech.convert(
+                voice_id=voice,
                 text=text,
-                voice=voice,
-                model="eleven_monolingual_v1",
-                stream=True
+                model_id="eleven_monolingual_v1"
             )
             
             # Yield chunks as they arrive
@@ -125,9 +124,8 @@ class ElevenLabsService:
             audio_file.name = "audio.webm"  # Add name attribute for the API
             
             # Use ElevenLabs speech-to-text API
-            # Note: The API expects a file-like object with a name
             transcription = self.client.speech_to_text.convert(
-                audio=audio_file,
+                file=audio_file,
                 model_id="scribe_v1",  # Scribe model for transcription
             )
             
