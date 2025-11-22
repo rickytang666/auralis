@@ -5,7 +5,7 @@ import os
 import base64
 from typing import Dict, Optional, AsyncIterator, List
 from io import BytesIO
-from elevenlabs import ElevenLabs
+from elevenlabs.client import ElevenLabs
 
 
 class ElevenLabsService:
