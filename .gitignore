@@ -26,4 +26,5 @@ yarn-debug.log*
 
 # Markdown files
 *.md
+!feature-plans.md
 !README.md

@@ -2,7 +2,7 @@
 ElevenLabs TTS service - handles text-to-speech conversion
 """
 import os
-from typing import Dict, Optional, AsyncIterator
+from typing import Dict, Optional, AsyncIterator, List
 
 
 class ElevenLabsService:
