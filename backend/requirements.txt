@@ -4,8 +4,8 @@ uvicorn[standard]==0.24.0
 python-multipart==0.0.6
 
 # Pydantic for data validation
-pydantic==2.5.0
-pydantic-settings==2.1.0
+pydantic==2.10.5
+pydantic-settings==2.7.1
 
 # HTTP client for API calls
 httpx==0.25.2
