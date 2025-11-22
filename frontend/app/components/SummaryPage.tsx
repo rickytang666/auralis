@@ -14,11 +14,19 @@ interface SummaryPageProps {
   conversationData: Message[];
 }
 
+interface SummaryData {
+  overview: string;
+  recommendations: string[];
+}
+
 export default function SummaryPage({
   onBackToMain,
   conversationData,
 }: SummaryPageProps) {
-  const [summary, setSummary] = useState<string>("");
+  const [summary, setSummary] = useState<SummaryData>({
+    overview: "",
+    recommendations: [],
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -73,13 +81,23 @@ export default function SummaryPage({
     }
   };
 
-  const generateBasicSummary = () => {
+  const generateBasicSummary = (): SummaryData => {
     if (conversationData.length === 0) {
-      return "No conversation data available.";
+      return {
+        overview: "No conversation data available.",
+        recommendations: [],
+      };
     }
 
     const userMessages = conversationData.filter((msg) => msg.role === "user");
-    return `Consultation completed with ${userMessages.length} patient responses. The conversation covered various health concerns and symptoms.`;
+    return {
+      overview: `Consultation completed with ${userMessages.length} patient responses. The conversation covered various health concerns and symptoms.`,
+      recommendations: [
+        "Follow up with a healthcare provider if needed",
+        "Monitor your symptoms",
+        "Maintain a healthy lifestyle",
+      ],
+    };
   };
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 md:p-8">
@@ -133,9 +151,9 @@ export default function SummaryPage({
                   <p className="text-sm text-red-600">{error}</p>
                 </div>
               ) : (
-                <div className="mt-4 pt-4">
-                  <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
-                    {summary}
+                <div className="mt-4">
+                  <p className="text-sm text-gray-700 leading-relaxed">
+                    {summary.overview}
                   </p>
                 </div>
               )}
@@ -159,16 +177,31 @@ export default function SummaryPage({
                 </svg>
                 Going Forward
               </h3>
-              <ul className="space-y-4">
-                {[1, 2, 3].map((i) => (
-                  <li key={i} className="flex items-start">
-                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-200 text-blue-700 flex items-center justify-center text-xs font-bold mt-0.5 mr-3">
-                      {i}
-                    </div>
-                    <div className="h-4 bg-blue-200/50 rounded w-full mt-1 animate-pulse" />
-                  </li>
-                ))}
-              </ul>
+              {isLoading ? (
+                <ul className="space-y-4">
+                  {[1, 2, 3].map((i) => (
+                    <li key={i} className="flex items-start">
+                      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-200 text-blue-700 flex items-center justify-center text-xs font-bold mt-0.5 mr-3">
+                        {i}
+                      </div>
+                      <div className="h-4 bg-blue-200/50 rounded w-full mt-1 animate-pulse" />
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <ul className="space-y-4">
+                  {summary.recommendations.map((rec, i) => (
+                    <li key={i} className="flex items-start">
+                      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-200 text-blue-700 flex items-center justify-center text-xs font-bold mt-0.5 mr-3">
+                        {i + 1}
+                      </div>
+                      <p className="text-sm text-gray-700 flex-1 mt-0.5">
+                        {rec}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
               <div className="mt-8 flex gap-4">
                 <button className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-medium shadow-lg shadow-blue-200 hover:bg-blue-700 transition-colors">
                   Download Report

@@ -29,11 +29,13 @@ export default function AudioController({
   const [hasPermission, setHasPermission] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false); // New state for AI processing
 
   const recorderRef = useRef<AudioRecorder | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const shouldContinueListeningRef = useRef<boolean>(false);
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null); // Track current playing audio
 
   useEffect(() => {
     // Initialize audio recorder
@@ -43,15 +45,28 @@ export default function AudioController({
     checkMicrophonePermission();
 
     return () => {
-      // Cleanup
+      // Cleanup - stop everything when component unmounts
       shouldContinueListeningRef.current = false;
+
+      // Stop any timers
       if (silenceTimerRef.current) {
         clearTimeout(silenceTimerRef.current);
       }
+
+      // Stop and cleanup all audio
       if (audioRef.current) {
         audioRef.current.pause();
+        audioRef.current.src = "";
         audioRef.current = null;
       }
+
+      if (currentAudioRef.current) {
+        currentAudioRef.current.pause();
+        currentAudioRef.current.src = "";
+        currentAudioRef.current = null;
+      }
+
+      // Stop recording
       if (recorderRef.current && recorderRef.current.isRecording()) {
         recorderRef.current.stopRecording().catch(() => {});
       }
@@ -108,6 +123,8 @@ export default function AudioController({
 
   const handleChatResponse = async (userMessage: string) => {
     try {
+      setIsProcessing(true); // Show processing indicator
+
       // Call real Gemini chat API
       const response = await fetch("http://localhost:8000/api/chat", {
         method: "POST",
@@ -139,6 +156,8 @@ export default function AudioController({
       if (continuousMode && shouldContinueListeningRef.current) {
         startListening(); // Restart listening even on error
       }
+    } finally {
+      setIsProcessing(false); // Hide processing indicator
     }
   };
 
@@ -163,10 +182,16 @@ export default function AudioController({
         // Convert base64 to playable URL
         const audioUrl = `data:audio/mpeg;base64,${data.audio_base64}`;
 
+        // Stop any currently playing audio first
+        if (currentAudioRef.current) {
+          currentAudioRef.current.pause();
+          currentAudioRef.current.src = "";
+        }
+
         // Emit event for avatar
         window.dispatchEvent(new CustomEvent("audioPlaybackStart"));
 
-        await playAudio(
+        const audio = await playAudio(
           audioUrl,
           () => {
             setIsPlaying(true);
@@ -176,6 +201,7 @@ export default function AudioController({
             setIsPlaying(false);
             onSpeakingStateChange?.(false);
             window.dispatchEvent(new CustomEvent("audioPlaybackEnd"));
+            currentAudioRef.current = null;
 
             // Auto-restart listening in continuous mode
             if (continuousMode && shouldContinueListeningRef.current) {
@@ -188,6 +214,7 @@ export default function AudioController({
             setError(error);
             setIsPlaying(false);
             onSpeakingStateChange?.(false);
+            currentAudioRef.current = null;
 
             // Still restart listening even on error
             if (continuousMode && shouldContinueListeningRef.current) {
@@ -197,6 +224,9 @@ export default function AudioController({
             }
           }
         );
+
+        // Track the current audio element
+        currentAudioRef.current = audio;
       }
     } catch (err) {
       console.error("TTS error:", err);
@@ -233,14 +263,13 @@ export default function AudioController({
       clearTimeout(silenceTimerRef.current);
     }
 
-    // Auto-stop recording after 3 seconds of "silence"
-    // In a real implementation, you'd use Web Audio API to detect actual silence
-    // For now, we'll use a simple timer approach
+    // Auto-stop recording after 8 seconds to allow for longer responses
+    // This gives users time to think and speak complete sentences
     silenceTimerRef.current = setTimeout(() => {
       if (recorderRef.current && recorderRef.current.isRecording()) {
         stopListening();
       }
-    }, 3000); // 3 seconds
+    }, 8000); // 8 seconds - much more reasonable for natural conversation
   };
 
   const stopListening = async () => {
@@ -303,15 +332,30 @@ export default function AudioController({
             {hasPermission && isListening && (
               <p className="text-xs text-red-600 font-medium">Listening...</p>
             )}
+            {hasPermission && isProcessing && (
+              <p className="text-xs text-yellow-600 font-medium animate-pulse">
+                Thinking...
+              </p>
+            )}
             {hasPermission && isPlaying && (
               <p className="text-xs text-blue-600 font-medium">
                 Doctor is speaking...
               </p>
             )}
-            {hasPermission && !isListening && !isPlaying && (
+            {hasPermission && !isListening && !isPlaying && !isProcessing && (
               <p className="text-xs text-gray-500">Ready</p>
             )}
           </div>
+
+          {/* Done Speaking button - only show when listening */}
+          {isListening && (
+            <button
+              onClick={stopListening}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-full transition-colors shadow-lg"
+            >
+              Done Speaking
+            </button>
+          )}
         </div>
       ) : (
         // Original button mode (for non-continuous use)

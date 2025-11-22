@@ -18,21 +18,62 @@ class GeminiService:
         # Configure Gemini API
         genai.configure(api_key=self.api_key)
 
-        # Initialize the model
-        self.model_name = "gemini-2.5-pro"
-        self.model = genai.GenerativeModel(self.model_name)
+        # Initialize the model with faster configuration
+        # Using gemini-2.5-flash for lower latency (vs gemini-2.5-pro)
+        self.model_name = "gemini-2.5-flash"
+        
+        # Configure for speed and natural responses
+        generation_config = {
+            "temperature": 0.7,
+            "top_p": 0.95,
+            "top_k": 40,
+            "max_output_tokens": 500,  # Allow longer responses for complete thoughts
+            "candidate_count": 1,
+        }
+        
+        # Safety settings - allow medical content
+        safety_settings = [
+            {
+                "category": "HARM_CATEGORY_HARASSMENT",
+                "threshold": "BLOCK_NONE"
+            },
+            {
+                "category": "HARM_CATEGORY_HATE_SPEECH",
+                "threshold": "BLOCK_NONE"
+            },
+            {
+                "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+            },
+            {
+                "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+                "threshold": "BLOCK_NONE"  # Allow medical discussions
+            },
+        ]
+        
+        self.model = genai.GenerativeModel(
+            self.model_name,
+            generation_config=generation_config,
+            safety_settings=safety_settings
+        )
+        
+        # Separate model for summaries with higher token limit
+        summary_config = {
+            "temperature": 0.5,
+            "top_p": 0.95,
+            "top_k": 40,
+            "max_output_tokens": 1000,  # Higher limit for detailed summaries
+            "candidate_count": 1,
+        }
+        self.summary_model = genai.GenerativeModel(
+            self.model_name,
+            generation_config=summary_config,
+            safety_settings=safety_settings
+        )
+        
         self.conversation_history = []
-
-        # System prompt for AI doctor persona
-        self.system_prompt = """You are an empathetic AI doctor conducting a video consultation.
-Your role is to:
-- Listen actively to patient concerns
-- Ask relevant follow-up questions
-- Provide preliminary health guidance
-- Show empathy and understanding
-- Recognize when professional medical attention is needed
-
-Keep responses conversational and concise (2-3 sentences max)."""
+        self.chat_session = None  # Will be initialized on first use
+        self.system_message = "You are a friendly virtual doctor. Keep responses very brief (1-2 sentences). Ask follow-up questions about symptoms."
 
     async def get_response(
         self,
@@ -52,20 +93,38 @@ Keep responses conversational and concise (2-3 sentences max)."""
             Dict containing response text and metadata
         """
         try:
-            # Build the prompt with emotion context
-            prompt = self._build_prompt(message, emotion, emotion_context)
+            # Initialize chat session if not exists
+            if self.chat_session is None:
+                # Start chat with system message as first exchange
+                self.chat_session = self.model.start_chat(history=[
+                    {"role": "user", "parts": [self.system_message]},
+                    {"role": "model", "parts": ["I understand. I'll keep my responses brief and ask relevant questions about symptoms."]}
+                ])
 
-            # Generate response from Gemini
-            response = self.model.generate_content(prompt)
+            # Send message to chat
+            response = self.chat_session.send_message(message)
 
-            # Extract response text
-            response_text = response.text.strip()
+            # Extract response text safely
+            try:
+                response_text = response.text.strip()
+                print(f"✓ Got response from Gemini: {response_text[:80]}...")
+            except (IndexError, AttributeError):
+                # Response was blocked or empty
+                print(f"Response blocked. Candidates: {response.candidates}")
+                fallback_responses = [
+                    "I understand. Can you tell me more about that?",
+                    "I see. What else have you been experiencing?",
+                    "Tell me more about how you've been feeling.",
+                    "I see. Could you tell me more about your symptoms?"
+                ]
+                import random
+                response_text = random.choice(fallback_responses)
 
-            # Add messages to conversation history
+            # Add to our history for tracking
             self._add_to_history("user", message)
             self._add_to_history("assistant", response_text)
 
-            # Determine if follow-up is needed (simple heuristic)
+            # Determine if follow-up is needed
             followup_needed = "?" in response_text or len(self.conversation_history) < 6
 
             return {
@@ -74,23 +133,32 @@ Keep responses conversational and concise (2-3 sentences max)."""
             }
 
         except Exception as e:
-            # Log error and return fallback response
+            # Log error and return fallback response with more details
+            import traceback
             print(f"Error calling Gemini API: {str(e)}")
+            print(traceback.format_exc())
+            
+            # Return a contextual fallback based on conversation history
+            if len(self.conversation_history) > 0:
+                fallback = "I see. Could you tell me more about your symptoms?"
+            else:
+                fallback = "Hello! I'm here to help. What brings you in today?"
+            
             return {
-                "text": "I'm having trouble processing that right now. Could you rephrase your concern?",
+                "text": fallback,
                 "followup_needed": True,
                 "error": str(e)
             }
 
-    async def generate_summary(self, conversation: List[Dict]) -> str:
+    async def generate_summary(self, conversation: List[Dict]) -> Dict[str, any]:
         """
-        Generate conversation summary using Gemini
+        Generate structured conversation summary using Gemini
 
         Args:
             conversation: List of conversation messages
 
         Returns:
-            Summary text
+            Dict with 'overview' and 'recommendations' keys
         """
         try:
             # Format conversation for summarization
@@ -103,30 +171,74 @@ Keep responses conversational and concise (2-3 sentences max)."""
 
             formatted_conversation = "\n".join(conversation_text)
 
-            # Build summarization prompt
-            summary_prompt = f"""You are a medical professional reviewing a patient consultation transcript.
-Please provide a concise summary of this consultation including:
-
-1. Chief Complaints: Main health concerns mentioned
-2. Key Symptoms: Important symptoms described
-3. Recommendations: Any advice or next steps discussed
-
-Keep the summary professional, clear, and concise (2-3 paragraphs maximum).
+            # Build summarization prompt for overview
+            overview_prompt = f"""You are a medical professional reviewing a patient consultation transcript.
+Provide a brief summary (2-3 sentences) covering:
+- Chief complaints and main health concerns
+- Key symptoms described
+- Overall assessment
 
 Consultation Transcript:
 {formatted_conversation}
 
-Medical Summary:"""
+Summary:"""
 
-            # Generate summary using Gemini
-            response = self.model.generate_content(summary_prompt)
-            summary = response.text.strip()
+            # Build prompt for recommendations
+            recommendations_prompt = f"""Based on this consultation transcript, provide 3-4 specific recommendations or next steps for the patient.
+Format as a numbered list. Be practical and actionable.
 
-            return summary
+Consultation Transcript:
+{formatted_conversation}
+
+Recommendations:"""
+
+            # Generate both summaries
+            overview_response = self.summary_model.generate_content(overview_prompt)
+            recommendations_response = self.summary_model.generate_content(recommendations_prompt)
+            
+            # Extract text safely
+            try:
+                overview = overview_response.text.strip()
+            except (IndexError, AttributeError):
+                print(f"Overview generation blocked. Candidates: {overview_response.candidates}")
+                overview = "The consultation covered various health concerns and symptoms."
+            
+            try:
+                recommendations_text = recommendations_response.text.strip()
+                # Parse recommendations into list
+                recommendations = []
+                for line in recommendations_text.split('\n'):
+                    line = line.strip()
+                    if line and (line[0].isdigit() or line.startswith('-') or line.startswith('•')):
+                        # Remove numbering/bullets
+                        clean_line = line.lstrip('0123456789.-•) ').strip()
+                        if clean_line:
+                            recommendations.append(clean_line)
+            except (IndexError, AttributeError):
+                print(f"Recommendations generation blocked. Candidates: {recommendations_response.candidates}")
+                recommendations = [
+                    "Follow up with a healthcare provider if symptoms persist",
+                    "Monitor your symptoms and keep a health journal",
+                    "Maintain a healthy lifestyle with proper rest and nutrition"
+                ]
+            
+            return {
+                "overview": overview,
+                "recommendations": recommendations
+            }
 
         except Exception as e:
+            import traceback
             print(f"Error generating summary: {str(e)}")
-            return "Unable to generate summary at this time. Please review the conversation transcript for details."
+            print(traceback.format_exc())
+            return {
+                "overview": "Unable to generate summary at this time. Please review the conversation transcript for details.",
+                "recommendations": [
+                    "Follow up with a healthcare provider if needed",
+                    "Monitor your symptoms",
+                    "Maintain a healthy lifestyle"
+                ]
+            }
 
     def _build_prompt(
         self,
