@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import LiquidEther from "./LiquidEther";
 
 interface LandingPageProps {
   onGetStarted: () => void;
@@ -8,10 +9,27 @@ interface LandingPageProps {
 
 export default function LandingPage({ onGetStarted }: LandingPageProps) {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      {/* Background Blobs */}
-      <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-purple-300/30 rounded-full blur-[100px]" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-blue-300/30 rounded-full blur-[100px]" />
+    <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden">
+      {/* LiquidEther Background */}
+      <div className="absolute inset-0 w-full h-full">
+        <LiquidEther
+          colors={['#5227FF', '#FF9FFC', '#B19EEF']}
+          mouseForce={20}
+          cursorSize={100}
+          isViscous={false}
+          viscous={30}
+          iterationsViscous={32}
+          iterationsPoisson={32}
+          resolution={0.5}
+          isBounce={false}
+          autoDemo={true}
+          autoSpeed={0.5}
+          autoIntensity={2.2}
+          takeoverDuration={0.25}
+          autoResumeDelay={3000}
+          autoRampDuration={0.6}
+        />
+      </div>
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
