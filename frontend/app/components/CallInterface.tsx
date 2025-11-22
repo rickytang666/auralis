@@ -41,18 +41,33 @@ export default function CallInterface({
   const [isAvatarLoaded, setIsAvatarLoaded] = useState(false);
   const [currentEmotion, setCurrentEmotion] = useState<string>("neutral");
   const [emotionHistory, setEmotionHistory] = useState<string[]>([]); // Track emotions during speaking
+  const [showEndPrompt, setShowEndPrompt] = useState(false); // Show end consultation prompt
 
   // Function to stop all audio and end call
   const handleEndCall = () => {
+    console.log("🛑 Ending call - stopping all audio and listening");
+
     // Stop all audio elements
     const audioElements = document.querySelectorAll("audio");
     audioElements.forEach((audio) => {
       audio.pause();
       audio.currentTime = 0;
+      audio.src = ""; // Clear source to fully stop
     });
 
-    // Dispatch event to stop any ongoing audio playback
+    // Dispatch events to stop everything
     window.dispatchEvent(new CustomEvent("audioPlaybackEnd"));
+    window.dispatchEvent(new CustomEvent("forceStopListening")); // New event to stop recording
+
+    // Stop any ongoing speech recognition
+    try {
+      const recognition = (window as any).recognition;
+      if (recognition) {
+        recognition.stop();
+      }
+    } catch (e) {
+      console.log("No active speech recognition to stop");
+    }
 
     // End the call
     onEndCall(messages);
@@ -63,6 +78,18 @@ export default function CallInterface({
       setElapsedTime((prev) => prev + 1);
     }, 1000);
     return () => clearInterval(timer);
+  }, []);
+
+  // Listen for end consultation suggestion from AI
+  useEffect(() => {
+    const handleEndSuggestion = () => {
+      setShowEndPrompt(true);
+    };
+
+    window.addEventListener("suggestEndConsultation", handleEndSuggestion);
+    return () => {
+      window.removeEventListener("suggestEndConsultation", handleEndSuggestion);
+    };
   }, []);
 
   // Speak the initial greeting ONLY when avatar is loaded
@@ -271,6 +298,39 @@ export default function CallInterface({
             onClearEmotionHistory={() => setEmotionHistory([])}
           />
         </div>
+
+        {/* End Consultation Prompt */}
+        {showEndPrompt && (
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-30">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="bg-white rounded-2xl shadow-2xl p-8 max-w-md mx-4"
+            >
+              <h3 className="text-2xl font-bold text-gray-800 mb-4">
+                End Consultation?
+              </h3>
+              <p className="text-gray-600 mb-6">
+                The doctor has finished addressing your concerns. Would you like
+                to end the consultation and view your summary?
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowEndPrompt(false)}
+                  className="flex-1 px-6 py-3 bg-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-300 transition-colors"
+                >
+                  Continue Talking
+                </button>
+                <button
+                  onClick={handleEndCall}
+                  className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors"
+                >
+                  End & View Summary
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
       </div>
     </div>
   );

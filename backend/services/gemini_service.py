@@ -27,7 +27,7 @@ class GeminiService:
             "temperature": 0.7,
             "top_p": 0.95,
             "top_k": 40,
-            "max_output_tokens": 800,  # Allow longer responses for complete thoughts
+            "max_output_tokens": 1500,  # Allow longer responses for complete thoughts
             "candidate_count": 1,
         }
         
@@ -62,7 +62,7 @@ class GeminiService:
             "temperature": 0.5,
             "top_p": 0.95,
             "top_k": 40,
-            "max_output_tokens": 1000,  # Higher limit for detailed summaries
+            "max_output_tokens": 1800,  # Higher limit for detailed summaries
             "candidate_count": 1,
         }
         self.summary_model = genai.GenerativeModel(
@@ -73,41 +73,57 @@ class GeminiService:
         
         self.conversation_history = []
         self.chat_session = None  # Will be initialized on first use
-        self.system_message = """You are an empathetic virtual doctor focused on helping patients with their health concerns.
+        self.system_message = """You're a friendly virtual doctor having a casual conversation with a patient. Talk naturally like you're texting a friend who needs medical advice.
 
-CRITICAL CONSULTATION FLOW:
-1. First message: Ask 1-2 clarifying questions about their main concern
-2. Second message: Ask 1-2 more specific questions if needed
-3. Third message onwards: Provide ASSESSMENT and ACTIONABLE ADVICE
+STYLE:
+- Casual, conversational tone (like texting)
+- 2-3 sentences MAX per response (never more unless absolutely critical)
+- NO markdown, NO asterisks, NO numbered lists, NO bullet points
+- Just plain text, natural flow
+- Be warm but professional
 
-After gathering basic information (usually 2-3 exchanges), you MUST:
-- Summarize what you understand
-- Give a preliminary assessment
-- Provide specific, actionable recommendations
-- Offer to answer follow-up questions
+CONSULTATION FLOW:
+1. First message: Ask 1-2 questions about their concern
+2. Second message: Ask 1-2 more questions if needed
+3. Third message: Give your assessment and advice in plain language
 
-DO NOT keep asking questions indefinitely. Patients need advice, not endless interrogation.
+After 2-3 exchanges, give advice. Don't keep asking questions forever.
 
-Examples of GOOD conversation flow:
+GOOD EXAMPLES:
 
-Exchange 1:
 Patient: "I have a headache"
-You: "I understand. Where exactly is the pain located, and how long have you had it?"
+You: "Got it. Where exactly does it hurt and how long have you had it?"
 
-Exchange 2:
-Patient: "It's in my forehead, started 2 days ago"
-You: "Is the pain constant or does it come and go? Any other symptoms like nausea or sensitivity to light?"
+Patient: "Forehead, started 2 days ago"
+You: "Is it constant or does it come and go? Any nausea or light sensitivity?"
 
-Exchange 3:
-Patient: "It's constant, no other symptoms"
-You: "Based on what you've described, this sounds like a tension headache. Here's what I recommend: 1) Take ibuprofen (400mg) every 6 hours, 2) Apply a cold compress to your forehead, 3) Stay hydrated and rest in a dark room. If it persists beyond 3-4 days or worsens, see a doctor in person. Does this help?"
+Patient: "Constant, no other symptoms"
+You: "Sounds like a tension headache. Try taking ibuprofen every 6 hours, use a cold compress on your forehead, and rest in a dark room. If it doesn't improve in 3-4 days or gets worse, definitely see a doctor in person."
 
-FACIAL EXPRESSIONS (use subtly):
-- Only mention emotional mismatches if SIGNIFICANT and CONCERNING
-- Focus on medical issues, not emotions
-- Be a doctor, not a therapist
+BAD EXAMPLES (too formal):
+❌ "Based on your symptoms, I recommend: 1) Ibuprofen 2) Cold compress 3) Rest"
+❌ "Here's what I suggest: **Take ibuprofen** and **apply ice**"
+❌ Long paragraphs with multiple recommendations
 
-Keep responses brief (2-3 sentences max)."""
+FACIAL EXPRESSIONS:
+- You can see the patient's face
+- Only mention emotion mismatches if they're blocking your ability to help
+- Example: Patient says "I'm totally fine" but looks very distressed → "I hear you, but you seem really troubled. What's actually going on?"
+- Don't interrogate emotions unless it's relevant to their health
+
+ENDING:
+When patient says "thanks" or "that's all":
+1. Say you're welcome
+2. Ask "Anything else I can help with?"
+3. If they say no, end warmly with [END_CONSULTATION] tag
+
+Example:
+Patient: "Thanks, that helps!"
+You: "You're welcome! Anything else I can help with?"
+Patient: "Nope, I'm good"
+You: "Great! Take care and feel better soon. [END_CONSULTATION]"
+
+Remember: Keep it casual, brief, and natural. You're texting medical advice, not writing a formal report."""
 
     async def get_response(
         self,
@@ -132,7 +148,7 @@ Keep responses brief (2-3 sentences max)."""
                 # Start chat with system message as first exchange
                 self.chat_session = self.model.start_chat(history=[
                     {"role": "user", "parts": [self.system_message]},
-                    {"role": "model", "parts": ["I understand. I'll ask 1-2 clarifying questions initially, then provide a clear assessment with actionable advice after gathering basic information. I'll avoid endless questioning and focus on helping the patient reach a resolution."]}
+                    {"role": "model", "parts": ["Got it. I'll keep things casual and brief, ask a couple questions to understand what's going on, then give straightforward advice. No formal lists or long explanations, just natural conversation."]}
                 ])
 
             # Build context-aware message with emotion info and conversation stage
@@ -157,16 +173,23 @@ Keep responses brief (2-3 sentences max)."""
                 import random
                 response_text = random.choice(fallback_responses)
 
+            # Check if AI is signaling end of consultation
+            should_end = "[END_CONSULTATION]" in response_text
+            
+            # Remove the tag from the response text (don't show to user)
+            clean_response = response_text.replace("[END_CONSULTATION]", "").strip()
+
             # Add to our history for tracking
             self._add_to_history("user", message)
-            self._add_to_history("assistant", response_text)
+            self._add_to_history("assistant", clean_response)
 
             # Determine if follow-up is needed
-            followup_needed = "?" in response_text or len(self.conversation_history) < 6
+            followup_needed = "?" in clean_response or len(self.conversation_history) < 6
 
             return {
-                "text": response_text,
-                "followup_needed": followup_needed
+                "text": clean_response,
+                "followup_needed": followup_needed,
+                "should_end_consultation": should_end
             }
 
         except Exception as e:
@@ -215,6 +238,8 @@ Provide a brief summary (2-3 sentences) covering:
 - Key symptoms described
 - Overall assessment
 
+IMPORTANT: Use plain text only. NO markdown, NO asterisks, NO special formatting. Write naturally like you're explaining to a colleague.
+
 Consultation Transcript:
 {formatted_conversation}
 
@@ -222,7 +247,13 @@ Summary:"""
 
             # Build prompt for recommendations
             recommendations_prompt = f"""Based on this consultation transcript, provide 3-4 specific recommendations or next steps for the patient.
-Format as a numbered list. Be practical and actionable.
+
+IMPORTANT: 
+- Write in plain text, NO markdown, NO asterisks, NO bold text
+- Start each recommendation naturally (e.g., "Try taking...", "Make sure to...", "Consider...")
+- Don't use numbered lists or bullet points
+- Separate recommendations with line breaks
+- Be practical and actionable
 
 Consultation Transcript:
 {formatted_conversation}
@@ -242,15 +273,20 @@ Recommendations:"""
             
             try:
                 recommendations_text = recommendations_response.text.strip()
-                # Parse recommendations into list
+                # Parse recommendations into list - split by line breaks
                 recommendations = []
                 for line in recommendations_text.split('\n'):
                     line = line.strip()
-                    if line and (line[0].isdigit() or line.startswith('-') or line.startswith('•')):
-                        # Remove numbering/bullets
-                        clean_line = line.lstrip('0123456789.-•) ').strip()
-                        if clean_line:
-                            recommendations.append(clean_line)
+                    # Remove any markdown formatting that might slip through
+                    line = line.replace('**', '').replace('*', '').replace('##', '').replace('#', '')
+                    # Remove numbering/bullets if present
+                    if line and len(line) > 3:  # Ignore very short lines
+                        # Remove common prefixes
+                        for prefix in ['1.', '2.', '3.', '4.', '5.', '-', '•', '●']:
+                            if line.startswith(prefix):
+                                line = line[len(prefix):].strip()
+                        if line:
+                            recommendations.append(line)
             except (IndexError, AttributeError):
                 print(f"Recommendations generation blocked. Candidates: {recommendations_response.candidates}")
                 recommendations = [

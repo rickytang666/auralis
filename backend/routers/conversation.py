@@ -40,7 +40,8 @@ async def chat(request: ChatRequest):
         
         return ChatResponse(
             response=response["text"],
-            followup_needed=response.get("followup_needed", False)
+            followup_needed=response.get("followup_needed", False),
+            should_end_consultation=response.get("should_end_consultation", False)
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

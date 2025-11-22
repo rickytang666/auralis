@@ -29,12 +29,17 @@ class ChatResponse(BaseModel):
         default=False,
         description="Whether follow-up question is recommended"
     )
+    should_end_consultation: bool = Field(
+        default=False,
+        description="Whether AI suggests ending the consultation"
+    )
     
     class Config:
         json_schema_extra = {
             "example": {
                 "response": "I understand. How long have you been experiencing this fatigue?",
-                "followup_needed": True
+                "followup_needed": True,
+                "should_end_consultation": False
             }
         }
 

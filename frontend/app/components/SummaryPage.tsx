@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 
 interface Message {
@@ -29,12 +29,18 @@ export default function SummaryPage({
   });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const hasFetchedRef = useRef(false); // Prevent double fetch in React Strict Mode
 
   useEffect(() => {
-    fetchInsights();
+    // Only fetch once, even in React Strict Mode
+    if (!hasFetchedRef.current) {
+      hasFetchedRef.current = true;
+      fetchInsights();
+    }
   }, []);
 
   const fetchInsights = async () => {
+    console.log("📊 Fetching insights from API...");
     try {
       setIsLoading(true);
       setError(null);
@@ -70,6 +76,7 @@ export default function SummaryPage({
       }
 
       const data = await response.json();
+      console.log("✓ Insights received:", data.summary);
       setSummary(data.summary);
     } catch (err) {
       console.error("Error fetching insights:", err);
