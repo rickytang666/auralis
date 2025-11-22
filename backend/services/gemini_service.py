@@ -92,12 +92,40 @@ Keep responses conversational and concise (2-3 sentences max)."""
         Returns:
             Summary text
         """
-        # TODO: Implement conversation summarization
-        # - Format conversation history
-        # - Request summary from Gemini
-        # - Extract key health concerns and recommendations
+        try:
+            # Format conversation for summarization
+            conversation_text = []
+            for msg in conversation:
+                role = "Patient" if msg.role == "user" else "Doctor"
+                content = msg.content
+                conversation_text.append(f"{role}: {content}")
 
-        return "Conversation summary will be generated here."
+            formatted_conversation = "\n".join(conversation_text)
+
+            # Build summarization prompt
+            summary_prompt = f"""You are a medical professional reviewing a patient consultation transcript.
+Please provide a concise summary of this consultation including:
+
+1. Chief Complaints: Main health concerns mentioned
+2. Key Symptoms: Important symptoms described
+3. Recommendations: Any advice or next steps discussed
+
+Keep the summary professional, clear, and concise (2-3 paragraphs maximum).
+
+Consultation Transcript:
+{formatted_conversation}
+
+Medical Summary:"""
+
+            # Generate summary using Gemini
+            response = self.model.generate_content(summary_prompt)
+            summary = response.text.strip()
+
+            return summary
+
+        except Exception as e:
+            print(f"Error generating summary: {str(e)}")
+            return "Unable to generate summary at this time. Please review the conversation transcript for details."
 
     def _build_prompt(
         self,
