@@ -14,6 +14,9 @@ interface AudioControllerProps {
   onAssistantResponse?: (text: string) => void;
   autoStart?: boolean; // Auto-start listening when component mounts
   continuousMode?: boolean; // Automatically restart listening after AI speaks
+  currentEmotion?: string; // Current emotion detected from webcam
+  emotionHistory?: string[]; // History of emotions detected during conversation
+  onClearEmotionHistory?: () => void; // Callback to clear emotion history after use
 }
 
 export default function AudioController({
@@ -22,6 +25,9 @@ export default function AudioController({
   onAssistantResponse,
   autoStart = false,
   continuousMode = false,
+  currentEmotion = "neutral",
+  emotionHistory = [],
+  onClearEmotionHistory,
 }: AudioControllerProps) {
   const [isListening, setIsListening] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -44,7 +50,49 @@ export default function AudioController({
     // Check microphone permission
     checkMicrophonePermission();
 
+    // Listen for force stop event (when call ends)
+    const handleForceStop = () => {
+      console.log(
+        "🛑 Force stopping all audio and listening - PERMANENT SHUTDOWN"
+      );
+      shouldContinueListeningRef.current = false;
+
+      // Stop recording immediately
+      if (recorderRef.current && recorderRef.current.isRecording()) {
+        recorderRef.current.stopRecording().catch(() => {});
+      }
+
+      // Stop any playing audio
+      if (currentAudioRef.current) {
+        currentAudioRef.current.pause();
+        currentAudioRef.current.src = "";
+        currentAudioRef.current = null;
+      }
+
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = "";
+        audioRef.current = null;
+      }
+
+      // Clear timers
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current);
+        silenceTimerRef.current = null;
+      }
+
+      // Reset all states
+      setIsListening(false);
+      setIsPlaying(false);
+      setIsProcessing(false);
+      setIsMuted(true); // Mute to prevent any further audio
+    };
+
+    window.addEventListener("forceStopListening", handleForceStop);
+
     return () => {
+      window.removeEventListener("forceStopListening", handleForceStop);
+
       // Cleanup - stop everything when component unmounts
       shouldContinueListeningRef.current = false;
 
@@ -121,9 +169,53 @@ export default function AudioController({
     }
   };
 
+  const getDominantEmotion = (emotions: string[]): string => {
+    if (emotions.length === 0) return currentEmotion;
+
+    // Count occurrences of each emotion
+    const emotionCounts: Record<string, number> = {};
+    emotions.forEach((emotion) => {
+      emotionCounts[emotion] = (emotionCounts[emotion] || 0) + 1;
+    });
+
+    // Find the most frequent emotion
+    let dominantEmotion = currentEmotion;
+    let maxCount = 0;
+
+    Object.entries(emotionCounts).forEach(([emotion, count]) => {
+      if (count > maxCount) {
+        maxCount = count;
+        dominantEmotion = emotion;
+      }
+    });
+
+    console.log("📊 Emotion analysis during speaking:");
+    console.log("  - Emotion history:", emotions);
+    console.log("  - Emotion counts:", emotionCounts);
+    console.log(
+      "  - Dominant emotion:",
+      dominantEmotion,
+      `(${maxCount}/${emotions.length})`
+    );
+
+    return dominantEmotion;
+  };
+
   const handleChatResponse = async (userMessage: string) => {
+    // Check if call has ended
+    if (!shouldContinueListeningRef.current && continuousMode) {
+      console.log("⛔ Call ended - not processing chat response");
+      return;
+    }
+
     try {
       setIsProcessing(true); // Show processing indicator
+
+      // Calculate dominant emotion from history during speaking
+      const dominantEmotion = getDominantEmotion(emotionHistory);
+
+      // Clear emotion history for next speaking session
+      onClearEmotionHistory?.();
 
       // Call real Gemini chat API
       const response = await fetch("http://localhost:8000/api/chat", {
@@ -133,7 +225,7 @@ export default function AudioController({
         },
         body: JSON.stringify({
           message: userMessage,
-          emotion: "neutral", // TODO: Replace with real emotion from Person 2's face detection
+          emotion: dominantEmotion, // Use dominant emotion from speaking period
         }),
       });
 
@@ -146,6 +238,13 @@ export default function AudioController({
       if (data.response) {
         // Notify parent component of assistant response
         onAssistantResponse?.(data.response);
+
+        // Check if AI suggests ending consultation
+        if (data.should_end_consultation) {
+          console.log("🏁 AI suggests ending consultation");
+          // Dispatch event to show end consultation prompt
+          window.dispatchEvent(new CustomEvent("suggestEndConsultation"));
+        }
 
         // Send to TTS
         await speakText(data.response);
@@ -162,6 +261,12 @@ export default function AudioController({
   };
 
   const speakText = async (text: string) => {
+    // Check if call has ended
+    if (!shouldContinueListeningRef.current && continuousMode) {
+      console.log("⛔ Call ended - not speaking text");
+      return;
+    }
+
     try {
       setError(null);
       const response = await fetch("http://localhost:8000/api/tts", {
@@ -203,11 +308,21 @@ export default function AudioController({
             window.dispatchEvent(new CustomEvent("audioPlaybackEnd"));
             currentAudioRef.current = null;
 
-            // Auto-restart listening in continuous mode
+            // Auto-restart listening in continuous mode (only if not stopped)
             if (continuousMode && shouldContinueListeningRef.current) {
+              console.log("🔄 Auto-restarting listening in 500ms");
               setTimeout(() => {
-                startListening();
+                // Double-check before restarting
+                if (shouldContinueListeningRef.current) {
+                  startListening();
+                } else {
+                  console.log("⛔ Call ended during delay - not restarting");
+                }
               }, 500); // Small delay before restarting
+            } else {
+              console.log(
+                "⛔ Not restarting - continuous mode disabled or call ended"
+              );
             }
           },
           (error) => {
@@ -216,10 +331,17 @@ export default function AudioController({
             onSpeakingStateChange?.(false);
             currentAudioRef.current = null;
 
-            // Still restart listening even on error
+            // Still restart listening even on error (only if not stopped)
             if (continuousMode && shouldContinueListeningRef.current) {
+              console.log("🔄 Restarting after audio error in 500ms");
               setTimeout(() => {
-                startListening();
+                if (shouldContinueListeningRef.current) {
+                  startListening();
+                } else {
+                  console.log(
+                    "⛔ Call ended during error delay - not restarting"
+                  );
+                }
               }, 500);
             }
           }
@@ -235,6 +357,12 @@ export default function AudioController({
   };
 
   const startListening = async () => {
+    // Check if we should continue (call might have ended)
+    if (!shouldContinueListeningRef.current && continuousMode) {
+      console.log("⛔ Call ended - not starting listening");
+      return;
+    }
+
     if (!hasPermission) {
       await checkMicrophonePermission();
       return;

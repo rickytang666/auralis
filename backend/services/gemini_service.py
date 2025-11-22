@@ -27,7 +27,7 @@ class GeminiService:
             "temperature": 0.7,
             "top_p": 0.95,
             "top_k": 40,
-            "max_output_tokens": 800,  # Allow longer responses for complete thoughts
+            "max_output_tokens": 1500,  # Allow longer responses for complete thoughts
             "candidate_count": 1,
         }
         
@@ -62,7 +62,7 @@ class GeminiService:
             "temperature": 0.5,
             "top_p": 0.95,
             "top_k": 40,
-            "max_output_tokens": 1000,  # Higher limit for detailed summaries
+            "max_output_tokens": 1800,  # Higher limit for detailed summaries
             "candidate_count": 1,
         }
         self.summary_model = genai.GenerativeModel(
@@ -73,7 +73,57 @@ class GeminiService:
         
         self.conversation_history = []
         self.chat_session = None  # Will be initialized on first use
-        self.system_message = "You are a friendly virtual doctor. Keep responses very brief (1-2 sentences). Ask follow-up questions about symptoms."
+        self.system_message = """You're a friendly virtual doctor having a casual conversation with a patient. Talk naturally like you're texting a friend who needs medical advice.
+
+STYLE:
+- Casual, conversational tone (like texting)
+- 2-3 sentences MAX per response (never more unless absolutely critical)
+- NO markdown, NO asterisks, NO numbered lists, NO bullet points
+- Just plain text, natural flow
+- Be warm but professional
+
+CONSULTATION FLOW:
+1. First message: Ask 1-2 questions about their concern
+2. Second message: Ask 1-2 more questions if needed
+3. Third message: Give your assessment and advice in plain language
+
+After 2-3 exchanges, give advice. Don't keep asking questions forever.
+
+GOOD EXAMPLES:
+
+Patient: "I have a headache"
+You: "Got it. Where exactly does it hurt and how long have you had it?"
+
+Patient: "Forehead, started 2 days ago"
+You: "Is it constant or does it come and go? Any nausea or light sensitivity?"
+
+Patient: "Constant, no other symptoms"
+You: "Sounds like a tension headache. Try taking ibuprofen every 6 hours, use a cold compress on your forehead, and rest in a dark room. If it doesn't improve in 3-4 days or gets worse, definitely see a doctor in person."
+
+BAD EXAMPLES (too formal):
+❌ "Based on your symptoms, I recommend: 1) Ibuprofen 2) Cold compress 3) Rest"
+❌ "Here's what I suggest: **Take ibuprofen** and **apply ice**"
+❌ Long paragraphs with multiple recommendations
+
+FACIAL EXPRESSIONS:
+- You can see the patient's face
+- Only mention emotion mismatches if they're blocking your ability to help
+- Example: Patient says "I'm totally fine" but looks very distressed → "I hear you, but you seem really troubled. What's actually going on?"
+- Don't interrogate emotions unless it's relevant to their health
+
+ENDING:
+When patient says "thanks" or "that's all":
+1. Say you're welcome
+2. Ask "Anything else I can help with?"
+3. If they say no, end warmly with [END_CONSULTATION] tag
+
+Example:
+Patient: "Thanks, that helps!"
+You: "You're welcome! Anything else I can help with?"
+Patient: "Nope, I'm good"
+You: "Great! Take care and feel better soon. [END_CONSULTATION]"
+
+Remember: Keep it casual, brief, and natural. You're texting medical advice, not writing a formal report."""
 
     async def get_response(
         self,
@@ -98,11 +148,14 @@ class GeminiService:
                 # Start chat with system message as first exchange
                 self.chat_session = self.model.start_chat(history=[
                     {"role": "user", "parts": [self.system_message]},
-                    {"role": "model", "parts": ["I understand. I'll keep my responses brief and ask relevant questions about symptoms."]}
+                    {"role": "model", "parts": ["Got it. I'll keep things casual and brief, ask a couple questions to understand what's going on, then give straightforward advice. No formal lists or long explanations, just natural conversation."]}
                 ])
 
+            # Build context-aware message with emotion info and conversation stage
+            contextual_message = self._build_contextual_message(message, emotion, emotion_context)
+            
             # Send message to chat
-            response = self.chat_session.send_message(message)
+            response = self.chat_session.send_message(contextual_message)
 
             # Extract response text safely
             try:
@@ -120,16 +173,23 @@ class GeminiService:
                 import random
                 response_text = random.choice(fallback_responses)
 
+            # Check if AI is signaling end of consultation
+            should_end = "[END_CONSULTATION]" in response_text
+            
+            # Remove the tag from the response text (don't show to user)
+            clean_response = response_text.replace("[END_CONSULTATION]", "").strip()
+
             # Add to our history for tracking
             self._add_to_history("user", message)
-            self._add_to_history("assistant", response_text)
+            self._add_to_history("assistant", clean_response)
 
             # Determine if follow-up is needed
-            followup_needed = "?" in response_text or len(self.conversation_history) < 6
+            followup_needed = "?" in clean_response or len(self.conversation_history) < 6
 
             return {
-                "text": response_text,
-                "followup_needed": followup_needed
+                "text": clean_response,
+                "followup_needed": followup_needed,
+                "should_end_consultation": should_end
             }
 
         except Exception as e:
@@ -178,6 +238,8 @@ Provide a brief summary (2-3 sentences) covering:
 - Key symptoms described
 - Overall assessment
 
+IMPORTANT: Use plain text only. NO markdown, NO asterisks, NO special formatting. Write naturally like you're explaining to a colleague.
+
 Consultation Transcript:
 {formatted_conversation}
 
@@ -185,7 +247,13 @@ Summary:"""
 
             # Build prompt for recommendations
             recommendations_prompt = f"""Based on this consultation transcript, provide 3-4 specific recommendations or next steps for the patient.
-Format as a numbered list. Be practical and actionable.
+
+IMPORTANT: 
+- Write in plain text, NO markdown, NO asterisks, NO bold text
+- Start each recommendation naturally (e.g., "Try taking...", "Make sure to...", "Consider...")
+- Don't use numbered lists or bullet points
+- Separate recommendations with line breaks
+- Be practical and actionable
 
 Consultation Transcript:
 {formatted_conversation}
@@ -205,15 +273,20 @@ Recommendations:"""
             
             try:
                 recommendations_text = recommendations_response.text.strip()
-                # Parse recommendations into list
+                # Parse recommendations into list - split by line breaks
                 recommendations = []
                 for line in recommendations_text.split('\n'):
                     line = line.strip()
-                    if line and (line[0].isdigit() or line.startswith('-') or line.startswith('•')):
-                        # Remove numbering/bullets
-                        clean_line = line.lstrip('0123456789.-•) ').strip()
-                        if clean_line:
-                            recommendations.append(clean_line)
+                    # Remove any markdown formatting that might slip through
+                    line = line.replace('**', '').replace('*', '').replace('##', '').replace('#', '')
+                    # Remove numbering/bullets if present
+                    if line and len(line) > 3:  # Ignore very short lines
+                        # Remove common prefixes
+                        for prefix in ['1.', '2.', '3.', '4.', '5.', '-', '•', '●']:
+                            if line.startswith(prefix):
+                                line = line[len(prefix):].strip()
+                        if line:
+                            recommendations.append(line)
             except (IndexError, AttributeError):
                 print(f"Recommendations generation blocked. Candidates: {recommendations_response.candidates}")
                 recommendations = [
@@ -284,6 +357,51 @@ Recommendations:"""
 
         return "\n".join(prompt_parts)
 
+    def _build_contextual_message(
+        self,
+        message: str,
+        emotion: str,
+        emotion_context: Optional[Dict] = None
+    ) -> str:
+        """
+        Build a message with emotion context for better AI understanding
+        
+        Args:
+            message: User's spoken words
+            emotion: Detected facial emotion
+            emotion_context: Mismatch analysis from EmotionAnalyzer
+            
+        Returns:
+            Contextual message string
+        """
+        # Start with the user's message
+        parts = [f'Patient says: "{message}"']
+        
+        # Add facial emotion as subtle context
+        parts.append(f"[Facial expression: {emotion}]")
+        
+        # Add conversation stage reminder
+        exchange_count = len([msg for msg in self.conversation_history if msg["role"] == "user"])
+        if exchange_count >= 2:
+            parts.append(f"[This is exchange #{exchange_count + 1}. You should provide assessment and advice now, not just more questions.]")
+        
+        # Only flag SIGNIFICANT mismatches (not every small discrepancy)
+        if emotion_context and emotion_context.get("mismatch_detected"):
+            confidence = emotion_context.get("confidence", 0)
+            
+            # Only flag if high confidence mismatch (strong sentiment + clear opposite emotion)
+            if confidence > 0.5:  # Significant mismatch threshold
+                mismatch_type = emotion_context.get("mismatch_type", "")
+                
+                if mismatch_type == "positive_words_negative_face":
+                    # Patient claiming to be fine but looks distressed
+                    parts.append(f"[Note: Patient expressing positivity but appears {emotion}. May want to check emotional wellbeing if appropriate.]")
+                elif mismatch_type == "negative_words_positive_face":
+                    # Patient complaining but looks fine - probably minor issue
+                    parts.append(f"[Note: Patient expressing concerns but appears {emotion}. Likely manageable issue.]")
+        
+        return "\n".join(parts)
+    
     def _add_to_history(self, role: str, content: str):
         """Add message to conversation history"""
         self.conversation_history.append({
