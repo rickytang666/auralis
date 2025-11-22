@@ -73,7 +73,41 @@ class GeminiService:
         
         self.conversation_history = []
         self.chat_session = None  # Will be initialized on first use
-        self.system_message = "You are a friendly virtual doctor. Keep responses very brief (1-2 sentences). Ask follow-up questions about symptoms."
+        self.system_message = """You are an empathetic virtual doctor focused on helping patients with their health concerns.
+
+CRITICAL CONSULTATION FLOW:
+1. First message: Ask 1-2 clarifying questions about their main concern
+2. Second message: Ask 1-2 more specific questions if needed
+3. Third message onwards: Provide ASSESSMENT and ACTIONABLE ADVICE
+
+After gathering basic information (usually 2-3 exchanges), you MUST:
+- Summarize what you understand
+- Give a preliminary assessment
+- Provide specific, actionable recommendations
+- Offer to answer follow-up questions
+
+DO NOT keep asking questions indefinitely. Patients need advice, not endless interrogation.
+
+Examples of GOOD conversation flow:
+
+Exchange 1:
+Patient: "I have a headache"
+You: "I understand. Where exactly is the pain located, and how long have you had it?"
+
+Exchange 2:
+Patient: "It's in my forehead, started 2 days ago"
+You: "Is the pain constant or does it come and go? Any other symptoms like nausea or sensitivity to light?"
+
+Exchange 3:
+Patient: "It's constant, no other symptoms"
+You: "Based on what you've described, this sounds like a tension headache. Here's what I recommend: 1) Take ibuprofen (400mg) every 6 hours, 2) Apply a cold compress to your forehead, 3) Stay hydrated and rest in a dark room. If it persists beyond 3-4 days or worsens, see a doctor in person. Does this help?"
+
+FACIAL EXPRESSIONS (use subtly):
+- Only mention emotional mismatches if SIGNIFICANT and CONCERNING
+- Focus on medical issues, not emotions
+- Be a doctor, not a therapist
+
+Keep responses brief (2-3 sentences max)."""
 
     async def get_response(
         self,
@@ -98,11 +132,14 @@ class GeminiService:
                 # Start chat with system message as first exchange
                 self.chat_session = self.model.start_chat(history=[
                     {"role": "user", "parts": [self.system_message]},
-                    {"role": "model", "parts": ["I understand. I'll keep my responses brief and ask relevant questions about symptoms."]}
+                    {"role": "model", "parts": ["I understand. I'll ask 1-2 clarifying questions initially, then provide a clear assessment with actionable advice after gathering basic information. I'll avoid endless questioning and focus on helping the patient reach a resolution."]}
                 ])
 
+            # Build context-aware message with emotion info and conversation stage
+            contextual_message = self._build_contextual_message(message, emotion, emotion_context)
+            
             # Send message to chat
-            response = self.chat_session.send_message(message)
+            response = self.chat_session.send_message(contextual_message)
 
             # Extract response text safely
             try:
@@ -284,6 +321,51 @@ Recommendations:"""
 
         return "\n".join(prompt_parts)
 
+    def _build_contextual_message(
+        self,
+        message: str,
+        emotion: str,
+        emotion_context: Optional[Dict] = None
+    ) -> str:
+        """
+        Build a message with emotion context for better AI understanding
+        
+        Args:
+            message: User's spoken words
+            emotion: Detected facial emotion
+            emotion_context: Mismatch analysis from EmotionAnalyzer
+            
+        Returns:
+            Contextual message string
+        """
+        # Start with the user's message
+        parts = [f'Patient says: "{message}"']
+        
+        # Add facial emotion as subtle context
+        parts.append(f"[Facial expression: {emotion}]")
+        
+        # Add conversation stage reminder
+        exchange_count = len([msg for msg in self.conversation_history if msg["role"] == "user"])
+        if exchange_count >= 2:
+            parts.append(f"[This is exchange #{exchange_count + 1}. You should provide assessment and advice now, not just more questions.]")
+        
+        # Only flag SIGNIFICANT mismatches (not every small discrepancy)
+        if emotion_context and emotion_context.get("mismatch_detected"):
+            confidence = emotion_context.get("confidence", 0)
+            
+            # Only flag if high confidence mismatch (strong sentiment + clear opposite emotion)
+            if confidence > 0.5:  # Significant mismatch threshold
+                mismatch_type = emotion_context.get("mismatch_type", "")
+                
+                if mismatch_type == "positive_words_negative_face":
+                    # Patient claiming to be fine but looks distressed
+                    parts.append(f"[Note: Patient expressing positivity but appears {emotion}. May want to check emotional wellbeing if appropriate.]")
+                elif mismatch_type == "negative_words_positive_face":
+                    # Patient complaining but looks fine - probably minor issue
+                    parts.append(f"[Note: Patient expressing concerns but appears {emotion}. Likely manageable issue.]")
+        
+        return "\n".join(parts)
+    
     def _add_to_history(self, role: str, content: str):
         """Add message to conversation history"""
         self.conversation_history.append({

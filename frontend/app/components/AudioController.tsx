@@ -15,6 +15,8 @@ interface AudioControllerProps {
   autoStart?: boolean; // Auto-start listening when component mounts
   continuousMode?: boolean; // Automatically restart listening after AI speaks
   currentEmotion?: string; // Current emotion detected from webcam
+  emotionHistory?: string[]; // History of emotions detected during conversation
+  onClearEmotionHistory?: () => void; // Callback to clear emotion history after use
 }
 
 export default function AudioController({
@@ -24,6 +26,8 @@ export default function AudioController({
   autoStart = false,
   continuousMode = false,
   currentEmotion = "neutral",
+  emotionHistory = [],
+  onClearEmotionHistory,
 }: AudioControllerProps) {
   const [isListening, setIsListening] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -123,9 +127,47 @@ export default function AudioController({
     }
   };
 
+  const getDominantEmotion = (emotions: string[]): string => {
+    if (emotions.length === 0) return currentEmotion;
+
+    // Count occurrences of each emotion
+    const emotionCounts: Record<string, number> = {};
+    emotions.forEach((emotion) => {
+      emotionCounts[emotion] = (emotionCounts[emotion] || 0) + 1;
+    });
+
+    // Find the most frequent emotion
+    let dominantEmotion = currentEmotion;
+    let maxCount = 0;
+
+    Object.entries(emotionCounts).forEach(([emotion, count]) => {
+      if (count > maxCount) {
+        maxCount = count;
+        dominantEmotion = emotion;
+      }
+    });
+
+    console.log("📊 Emotion analysis during speaking:");
+    console.log("  - Emotion history:", emotions);
+    console.log("  - Emotion counts:", emotionCounts);
+    console.log(
+      "  - Dominant emotion:",
+      dominantEmotion,
+      `(${maxCount}/${emotions.length})`
+    );
+
+    return dominantEmotion;
+  };
+
   const handleChatResponse = async (userMessage: string) => {
     try {
       setIsProcessing(true); // Show processing indicator
+
+      // Calculate dominant emotion from history during speaking
+      const dominantEmotion = getDominantEmotion(emotionHistory);
+
+      // Clear emotion history for next speaking session
+      onClearEmotionHistory?.();
 
       // Call real Gemini chat API
       const response = await fetch("http://localhost:8000/api/chat", {
@@ -135,7 +177,7 @@ export default function AudioController({
         },
         body: JSON.stringify({
           message: userMessage,
-          emotion: currentEmotion, // Real emotion from webcam face detection
+          emotion: dominantEmotion, // Use dominant emotion from speaking period
         }),
       });
 

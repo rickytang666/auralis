@@ -40,6 +40,7 @@ export default function CallInterface({
   const [shouldStartListening, setShouldStartListening] = useState(false);
   const [isAvatarLoaded, setIsAvatarLoaded] = useState(false);
   const [currentEmotion, setCurrentEmotion] = useState<string>("neutral");
+  const [emotionHistory, setEmotionHistory] = useState<string[]>([]); // Track emotions during speaking
 
   // Function to stop all audio and end call
   const handleEndCall = () => {
@@ -219,6 +220,9 @@ export default function CallInterface({
             onEmotionDetected={(emotion) => {
               console.log("📤 CallInterface received emotion:", emotion);
               setCurrentEmotion(emotion);
+
+              // Track emotion history (keep last 10 emotions)
+              setEmotionHistory((prev) => [...prev.slice(-9), emotion]);
             }}
           />
         </div>
@@ -263,6 +267,8 @@ export default function CallInterface({
             autoStart={shouldStartListening}
             continuousMode={true}
             currentEmotion={currentEmotion}
+            emotionHistory={emotionHistory}
+            onClearEmotionHistory={() => setEmotionHistory([])}
           />
         </div>
       </div>
