@@ -251,10 +251,10 @@ export default function CallInterface({
         </div>
 
 
-        {/* Webcam Feed with Emotion Detection (Bottom Left) - Resized (25% smaller) */}
-        <div className="absolute bottom-24 left-8 z-10">
+        {/* Webcam Feed with Emotion Detection (Left Panel) - Vertically Centered */}
+        <div className="absolute left-12 top-1/2 -translate-y-1/2 z-10 flex flex-col gap-4">
           {/* Webcam container - 300x225 (75% of 400x300) */}
-          <div className="w-[300px] h-[225px] rounded-2xl overflow-hidden shadow-2xl border-2 border-white/30 backdrop-blur-sm">
+          <div className="w-[300px] h-[225px] rounded-2xl overflow-hidden shadow-2xl border-2 border-white/40 backdrop-blur-md">
             <VideoFeed
               onEmotionDetected={(emotion, age, ageCat) => {
                 console.log("📤 CallInterface received emotion:", emotion);
@@ -276,28 +276,28 @@ export default function CallInterface({
             />
           </div>
 
-          {/* Confidence box below webcam - with emotion, confidence bar, and age */}
-          <div className="mt-4 w-[300px]">
-            <div className="bg-gray-900/90 backdrop-blur-md rounded-xl px-5 py-4 border border-white/20 shadow-xl">
+          {/* Confidence box - with emotion, confidence bar, and age */}
+          <div className="w-[300px]">
+            <div className="bg-gray-200/50 backdrop-blur-xl rounded-xl px-5 py-4 border border-white/20 shadow-2xl">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-white text-sm font-semibold">
+                <span className="text-gray-900 text-sm font-semibold">
                   Emotion:
                 </span>
                 <span
                   className={`text-base font-bold capitalize ${
                     currentEmotion === "happy"
-                      ? "text-yellow-400"
+                      ? "text-yellow-700"
                       : currentEmotion === "sad"
-                      ? "text-blue-400"
+                      ? "text-blue-700"
                       : currentEmotion === "angry"
-                      ? "text-red-400"
+                      ? "text-red-700"
                       : currentEmotion === "fearful"
-                      ? "text-purple-400"
+                      ? "text-purple-700"
                       : currentEmotion === "surprised"
-                      ? "text-pink-400"
+                      ? "text-pink-700"
                       : currentEmotion === "disgusted"
-                      ? "text-green-400"
-                      : "text-gray-400"
+                      ? "text-green-700"
+                      : "text-gray-900"
                   }`}
                 >
                   {currentEmotion}
@@ -307,10 +307,10 @@ export default function CallInterface({
               {/* Confidence label and bar */}
               <div className="mb-3">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-white/70 text-xs font-medium">
+                  <span className="text-gray-700 text-xs font-medium">
                     Confidence
                   </span>
-                  <span className="text-white text-xs font-bold">
+                  <span className="text-gray-900 text-xs font-bold">
                     {(confidence * 100).toFixed(0)}%
                   </span>
                 </div>
@@ -338,10 +338,10 @@ export default function CallInterface({
 
               {/* Age group display */}
               <div className="flex items-center justify-between pt-2 border-t border-white/10">
-                <span className="text-white/70 text-xs font-medium">
+                <span className="text-gray-700 text-xs font-medium">
                   Estimated Age
                 </span>
-                <span className="text-cyan-400 text-sm font-bold">
+                <span className="text-cyan-700 text-sm font-bold">
                   {ageCategory || "Detecting..."}
                 </span>
               </div>
@@ -350,10 +350,10 @@ export default function CallInterface({
         </div>
 
 
-        {/* Right Side - Transcript Overlay */}
-        <div className="absolute right-0 top-0 bottom-0 w-96 p-4 pr-2 z-10 flex flex-col justify-center pointer-events-none">
-          <div className="bg-white/80 backdrop-blur-md rounded-3xl shadow-xl border border-white/50 p-6 h-[600px] flex flex-col pointer-events-auto">
-            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">
+        {/* Right Side - Transcript Overlay - Vertically Centered */}
+        <div className="absolute right-8 top-1/2 -translate-y-1/2 w-96 z-10 pointer-events-none">
+          <div className="bg-gray-200/50 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/20 p-6 h-[580px] flex flex-col pointer-events-auto">
+            <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-4">
               Realtime Transcript
             </h3>
 
@@ -362,7 +362,7 @@ export default function CallInterface({
                 <div key={idx} className="space-y-1">
                   {/* Speaker label */}
                   <div className={`text-xs font-semibold ${
-                    msg.role === "assistant" ? "text-blue-600" : "text-gray-600"
+                    msg.role === "assistant" ? "text-blue-700" : "text-gray-900"
                   }`}>
                     {msg.role === "assistant" ? doctorName : "User"}
                   </div>
@@ -374,7 +374,7 @@ export default function CallInterface({
                         : "bg-gray-100/80 rounded-tr-none ml-auto"
                     }`}
                   >
-                    <p className="text-sm text-gray-800">{msg.content}</p>
+                    <p className="text-sm text-gray-900">{msg.content}</p>
                   </div>
                 </div>
               ))}

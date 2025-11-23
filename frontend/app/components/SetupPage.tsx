@@ -114,11 +114,24 @@ export default function SetupPage({
   }, [selectedVoice]);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 md:p-8">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 md:p-8 relative overflow-hidden">
+      {/* Grid Background */}
+      <div 
+        className="absolute inset-0"
+        style={{
+          backgroundImage: `
+            linear-gradient(to right, #9ca3af 1px, transparent 1px),
+            linear-gradient(to bottom, #9ca3af 1px, transparent 1px)
+          `,
+          backgroundSize: '30px 30px',
+          opacity: 0.3
+        }}
+      />
+      
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="w-full max-w-6xl bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row min-h-[600px]"
+        className="w-full max-w-6xl bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row min-h-[600px] relative z-10"
       >
         {/* Left Side - Avatar Preview */}
         <div
@@ -139,7 +152,7 @@ export default function SetupPage({
             onClick={onConnect}
             className="mt-8 w-full max-w-xs bg-black text-white py-4 rounded-xl font-semibold text-lg shadow-lg hover:shadow-xl transition-all flex items-center justify-center space-x-2 group z-10"
           >
-            <span>Connect with AIDoc</span>
+            <span>Connect with Doctor</span>
             <svg
               className="w-5 h-5 group-hover:translate-x-1 transition-transform"
               fill="none"

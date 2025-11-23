@@ -163,8 +163,8 @@ export default function Avatar({ isSpeaking = false, background, avatarId = "doc
         100
       );
       if (fullscreen) {
-        camera.position.set(0, 2, 1.2); // Much lower so entire head is visible
-        camera.lookAt(0, 2, 0); // Look at upper chest area
+        camera.position.set(0, 1.9, 1.2); // Much lower so entire head is visible
+        camera.lookAt(0, 1.9, 0); // Look at upper chest area
       } else {
         camera.position.set(0, 1.4, 1.8); // Normal distance for setup
         camera.lookAt(0, 1.3, 0); // Look at upper chest/neck area
