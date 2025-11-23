@@ -19,7 +19,11 @@ app = FastAPI(
 # CORS configuration for Next.js frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Next.js default port
+    allow_origins=[
+        "http://localhost:3000",  # Local development
+        "https://*.pages.dev",  # Cloudflare Pages preview deployments
+        "https://stop-googling-symptoms.tech",  # Your custom domain (when you set it up for frontend)
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
