@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
+import { generatePDF } from "../utils/pdfGenerator";
 
 interface Message {
   role: "user" | "assistant";
@@ -106,6 +107,11 @@ export default function SummaryPage({
       ],
     };
   };
+
+  const handleDownload = () => {
+    generatePDF(summary);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 md:p-8">
       <motion.div
@@ -210,7 +216,10 @@ export default function SummaryPage({
                 </ul>
               )}
               <div className="mt-8 flex gap-4">
-                <button className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-medium shadow-lg shadow-blue-200 hover:bg-blue-700 transition-colors">
+                <button
+                  onClick={handleDownload}
+                  className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-medium shadow-lg shadow-blue-200 hover:bg-blue-700 transition-colors"
+                >
                   Download Report
                 </button>
                 <button className="flex-1 py-3 bg-white text-blue-600 border border-blue-200 rounded-xl font-medium hover:bg-blue-50 transition-colors">
