@@ -31,13 +31,15 @@ async def chat(request: ChatRequest):
             detected_emotion=request.emotion
         )
         
-        # Get response from Gemini with age context
+        # Get response from Gemini with age and vitals context
         response = await gemini_service.get_response(
             message=request.message,
             emotion=request.emotion,
             age=request.age,
             age_category=request.age_category,
-            emotion_context=emotion_context
+            emotion_context=emotion_context,
+            pulse=request.current_pulse,
+            breathing=request.current_breathing
         )
         
         return ChatResponse(

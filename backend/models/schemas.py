@@ -14,6 +14,8 @@ class ChatRequest(BaseModel):
     emotion: str = Field(..., description="Detected emotion from face-api.js")
     age: Optional[int] = Field(None, description="Detected age from face-api.js")
     age_category: Optional[str] = Field(None, description="Age category (e.g., 'Young Adult', 'Senior')")
+    current_pulse: Optional[int] = Field(None, description="Current pulse rate in BPM from SmartSpectra")
+    current_breathing: Optional[int] = Field(None, description="Current breathing rate in BPM from SmartSpectra")
     
     class Config:
         json_schema_extra = {
@@ -21,7 +23,9 @@ class ChatRequest(BaseModel):
                 "message": "I've been feeling tired lately",
                 "emotion": "sad",
                 "age": 32,
-                "age_category": "Young Adult"
+                "age_category": "Young Adult",
+                "current_pulse": 72,
+                "current_breathing": 15
             }
         }
 

@@ -8,7 +8,7 @@ load_dotenv()
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import conversation, tts, insights
+from routers import conversation, tts, insights, upload_video
 
 app = FastAPI(
     title="AI Doctor API",
@@ -29,6 +29,7 @@ app.add_middleware(
 app.include_router(conversation.router, prefix="/api", tags=["conversation"])
 app.include_router(tts.router, prefix="/api", tags=["tts"])
 app.include_router(insights.router, prefix="/api", tags=["insights"])
+app.include_router(upload_video.router, prefix="/api", tags=["upload"])
 
 
 @app.get("/")

@@ -19,6 +19,8 @@ interface AudioControllerProps {
   onClearEmotionHistory?: () => void; // Callback to clear emotion history after use
   currentAge?: number | null; // Current age detected from webcam
   ageCategory?: string | null; // Age category (e.g., "Young Adult")
+  currentPulse?: number | null; // Current pulse rate from SmartSpectra
+  currentBreathing?: number | null; // Current breathing rate from SmartSpectra
 }
 
 export default function AudioController({
@@ -32,6 +34,8 @@ export default function AudioController({
   onClearEmotionHistory,
   currentAge = null,
   ageCategory = null,
+  currentPulse = null,
+  currentBreathing = null,
 }: AudioControllerProps) {
   const [isListening, setIsListening] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -232,6 +236,8 @@ export default function AudioController({
           emotion: dominantEmotion, // Use dominant emotion from speaking period
           age: currentAge,
           age_category: ageCategory,
+          current_pulse: currentPulse,
+          current_breathing: currentBreathing,
         }),
       });
 

@@ -131,10 +131,12 @@ Remember: Keep it casual, brief, and natural. You're texting medical advice, not
         emotion: str,
         age: Optional[int] = None,
         age_category: Optional[str] = None,
-        emotion_context: Optional[Dict] = None
+        emotion_context: Optional[Dict] = None,
+        pulse: Optional[int] = None,
+        breathing: Optional[int] = None
     ) -> Dict[str, any]:
         """
-        Get AI response based on user message, detected emotion, and age
+        Get AI response based on user message, detected emotion, age, and vitals
 
         Args:
             message: User's message text
@@ -142,6 +144,8 @@ Remember: Keep it casual, brief, and natural. You're texting medical advice, not
             age: Detected age (e.g., 32)
             age_category: Age category (e.g., "Young Adult", "Senior")
             emotion_context: Additional emotion analysis context
+            pulse: Current pulse rate in BPM (from SmartSpectra)
+            breathing: Current breathing rate in BPM (from SmartSpectra)
 
         Returns:
             Dict containing response text and metadata
@@ -155,8 +159,8 @@ Remember: Keep it casual, brief, and natural. You're texting medical advice, not
                     {"role": "model", "parts": ["Got it. I'll keep things casual and brief, ask a couple questions to understand what's going on, then give straightforward advice. No formal lists or long explanations, just natural conversation."]}
                 ])
 
-            # Build context-aware message with emotion, age, and conversation stage
-            contextual_message = self._build_contextual_message(message, emotion, age, age_category, emotion_context)
+            # Build context-aware message with emotion, age, vitals, and conversation stage
+            contextual_message = self._build_contextual_message(message, emotion, age, age_category, emotion_context, pulse, breathing)
             
             # Send message to chat
             response = self.chat_session.send_message(contextual_message)
@@ -367,7 +371,9 @@ Recommendations:"""
         emotion: str,
         age: Optional[int] = None,
         age_category: Optional[str] = None,
-        emotion_context: Optional[Dict] = None
+        emotion_context: Optional[Dict] = None,
+        pulse: Optional[int] = None,
+        breathing: Optional[int] = None
     ) -> str:
         """
         Build a message with emotion and age context for better AI understanding
@@ -393,6 +399,35 @@ Recommendations:"""
             age_guidance = self._get_age_guidance(age_category)
             if age_guidance:
                 parts.append(f"[Patient age group: {age_category}. {age_guidance}]")
+        
+        # Add vital signs context if available
+        if pulse is not None or breathing is not None:
+            vitals_info = []
+            vitals_assessment = []
+            
+            if pulse is not None:
+                vitals_info.append(f"Pulse: {pulse} BPM")
+                if pulse > 100:
+                    vitals_assessment.append("elevated heart rate")
+                elif pulse < 60:
+                    vitals_assessment.append("low heart rate")
+            
+            if breathing is not None:
+                vitals_info.append(f"Breathing: {breathing} BPM")
+                if breathing > 20:
+                    vitals_assessment.append("rapid breathing")
+                elif breathing < 12:
+                    vitals_assessment.append("slow breathing")
+            
+            vitals_str = ", ".join(vitals_info)
+            parts.append(f"[Real-time vitals: {vitals_str}]")
+            
+            # Add clinical interpretation for distress
+            if vitals_assessment:
+                if pulse is not None and breathing is not None and pulse > 100 and breathing > 20:
+                    parts.append("[Note: Patient shows signs of acute stress/anxiety (elevated pulse + rapid breathing). Consider acknowledging this gently and asking if they're feeling anxious or uncomfortable.]")
+                elif vitals_assessment:
+                    parts.append(f"[Note: Patient has {' and '.join(vitals_assessment)}. Consider mentioning this if relevant to their symptoms.]")
         
         # Add conversation stage reminder
         exchange_count = len([msg for msg in self.conversation_history if msg["role"] == "user"])

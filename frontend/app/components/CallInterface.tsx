@@ -5,6 +5,11 @@ import { motion } from "framer-motion";
 import Avatar from "./Avatar";
 import AudioController from "./AudioController";
 import VideoFeed from "./VideoFeed";
+import VitalsDisplay from "./VitalsDisplay";
+// Real SmartSpectra client - requires native helper running on ws://localhost:8765
+import { SmartSpectraClient, VitalsData } from "@/lib/smartspectra";
+// Use mock for development without native helper
+// import { SmartSpectraClient, VitalsData } from "@/lib/smartspectra_mock";
 
 interface CallInterfaceProps {
   onEndCall: (messages: Message[]) => void;
@@ -46,6 +51,55 @@ export default function CallInterface({
   const [showEndPrompt, setShowEndPrompt] = useState(false); // Show end consultation prompt
   const [currentAge, setCurrentAge] = useState<number | null>(null);
   const [ageCategory, setAgeCategory] = useState<string | null>(null);
+
+  // SmartSpectra vitals state
+  const [smartSpectraConnected, setSmartSpectraConnected] = useState(false);
+  const [pulse, setPulse] = useState<number | null>(null);
+  const [pulseConfidence, setPulseConfidence] = useState(0);
+  const [breathing, setBreathing] = useState<number | null>(null);
+  const [breathingConfidence, setBreathingConfidence] = useState(0);
+  const [isDistressed, setIsDistressed] = useState(false);
+
+  // Initialize SmartSpectra client
+  useEffect(() => {
+    const client = new SmartSpectraClient("ws://localhost:8765");
+    
+    client.onConnected(() => {
+      console.log("SmartSpectra: Connected");
+      setSmartSpectraConnected(true);
+    });
+    
+    client.onDisconnected(() => {
+      console.log("SmartSpectra: Disconnected");
+      setSmartSpectraConnected(false);
+    });
+    
+    client.onVitals((data: VitalsData) => {
+      console.log("SmartSpectra vitals:", data);
+      setPulse(data.pulse);
+      setPulseConfidence(data.pulseConfidence);
+      setBreathing(data.breathing);
+      setBreathingConfidence(data.breathingConfidence);
+    });
+    
+    client.onDistressDetected((distressed: boolean) => {
+      if (distressed) {
+        console.log("⚠️ Patient distress detected: elevated vitals");
+      }
+      setIsDistressed(distressed);
+    });
+    
+    client.onBreathingTrace((value: number) => {
+      // Optional: use real-time breathing trace for avatar animation
+      // Could feed this into Avatar component for synchronized breathing
+    });
+    
+    client.connect();
+    
+    return () => {
+      client.disconnect();
+    };
+  }, []);
 
   // Function to stop all audio and end call
   const handleEndCall = () => {
@@ -282,6 +336,18 @@ export default function CallInterface({
           />
         </div>
 
+        {/* Vitals Display - Top Left */}
+        <div className="absolute top-6 left-6 z-10">
+          <VitalsDisplay
+            pulse={pulse}
+            pulseConfidence={pulseConfidence}
+            breathing={breathing}
+            breathingConfidence={breathingConfidence}
+            connected={smartSpectraConnected}
+            isDistressed={isDistressed}
+          />
+        </div>
+
         {/* Right Side - Transcript Overlay */}
         <div className="absolute right-0 top-0 bottom-0 w-80 p-6 z-10 flex flex-col justify-center pointer-events-none">
           <div className="bg-white/80 backdrop-blur-md rounded-3xl shadow-xl border border-white/50 p-6 h-[600px] flex flex-col pointer-events-auto">
@@ -326,6 +392,8 @@ export default function CallInterface({
             onClearEmotionHistory={() => setEmotionHistory([])}
             currentAge={currentAge}
             ageCategory={ageCategory}
+            currentPulse={pulse}
+            currentBreathing={breathing}
           />
         </div>
 
