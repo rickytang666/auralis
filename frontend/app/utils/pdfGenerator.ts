@@ -1,5 +1,5 @@
 import jsPDF from "jspdf";
-import "jspdf-autotable";
+import autoTable from "jspdf-autotable";
 
 // Define the interface for the summary data
 interface SummaryData {
@@ -7,13 +7,8 @@ interface SummaryData {
     recommendations: string[];
 }
 
-// Extend jsPDF to include autoTable
-interface jsPDFWithAutoTable extends jsPDF {
-    autoTable: (options: any) => void;
-}
-
 export const generatePDF = (data: SummaryData) => {
-    const doc = new jsPDF() as jsPDFWithAutoTable;
+    const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     const margin = 25; // Slightly larger margin for a more formal look
@@ -94,7 +89,7 @@ export const generatePDF = (data: SummaryData) => {
     // Use autoTable for the list
     const recommendationsData = data.recommendations.map((rec, index) => [index + 1 + ".", rec]);
 
-    doc.autoTable({
+    autoTable(doc, {
         startY: currentY,
         body: recommendationsData,
         theme: 'plain', // Plain theme for a very serious look
