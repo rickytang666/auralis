@@ -12,12 +12,16 @@ class ChatRequest(BaseModel):
     """Request model for chat endpoint"""
     message: str = Field(..., description="User's message text")
     emotion: str = Field(..., description="Detected emotion from face-api.js")
+    age: Optional[int] = Field(None, description="Detected age from face-api.js")
+    age_category: Optional[str] = Field(None, description="Age category (e.g., 'Young Adult', 'Senior')")
     
     class Config:
         json_schema_extra = {
             "example": {
                 "message": "I've been feeling tired lately",
-                "emotion": "sad"
+                "emotion": "sad",
+                "age": 32,
+                "age_category": "Young Adult"
             }
         }
 

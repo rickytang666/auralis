@@ -41,6 +41,12 @@ declare module 'face-api.js' {
     expressions: FaceExpressions;
   }
 
+  export interface WithAge<T> {
+    age: number;
+    gender: string;
+    genderProbability: number;
+  }
+
   export class TinyFaceDetectorOptions {
     constructor(options?: {
       inputSize?: number;
@@ -56,6 +62,7 @@ declare module 'face-api.js' {
     tinyFaceDetector: FaceDetector;
     faceExpressionNet: FaceDetector;
     faceLandmark68Net: FaceDetector;
+    ageGenderNet: FaceDetector;
   };
 
   export function detectSingleFace(
@@ -66,11 +73,19 @@ declare module 'face-api.js' {
       WithFaceDetection<{}> & WithFaceExpressions<{}> | undefined
     >;
     withFaceLandmarks(): {
-      withFaceExpressions(): Promise<
-        | (WithFaceDetection<{ detection: FaceDetection; landmarks: FaceLandmarks68 }> &
-            WithFaceExpressions<{ detection: FaceDetection; landmarks: FaceLandmarks68 }>)
-        | undefined
-      >;
+      withFaceExpressions(): {
+        withAgeAndGender(): Promise<
+          | (WithFaceDetection<{ detection: FaceDetection; landmarks: FaceLandmarks68 }> &
+              WithFaceExpressions<{ detection: FaceDetection; landmarks: FaceLandmarks68 }> &
+              WithAge<{ detection: FaceDetection; landmarks: FaceLandmarks68 }>)
+          | undefined
+        >;
+        (): Promise<
+          | (WithFaceDetection<{ detection: FaceDetection; landmarks: FaceLandmarks68 }> &
+              WithFaceExpressions<{ detection: FaceDetection; landmarks: FaceLandmarks68 }>)
+          | undefined
+        >;
+      };
     };
   };
 

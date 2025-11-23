@@ -129,14 +129,18 @@ Remember: Keep it casual, brief, and natural. You're texting medical advice, not
         self,
         message: str,
         emotion: str,
+        age: Optional[int] = None,
+        age_category: Optional[str] = None,
         emotion_context: Optional[Dict] = None
     ) -> Dict[str, any]:
         """
-        Get AI response based on user message and detected emotion
+        Get AI response based on user message, detected emotion, and age
 
         Args:
             message: User's message text
             emotion: Detected emotion (e.g., "happy", "sad", "anxious")
+            age: Detected age (e.g., 32)
+            age_category: Age category (e.g., "Young Adult", "Senior")
             emotion_context: Additional emotion analysis context
 
         Returns:
@@ -151,8 +155,8 @@ Remember: Keep it casual, brief, and natural. You're texting medical advice, not
                     {"role": "model", "parts": ["Got it. I'll keep things casual and brief, ask a couple questions to understand what's going on, then give straightforward advice. No formal lists or long explanations, just natural conversation."]}
                 ])
 
-            # Build context-aware message with emotion info and conversation stage
-            contextual_message = self._build_contextual_message(message, emotion, emotion_context)
+            # Build context-aware message with emotion, age, and conversation stage
+            contextual_message = self._build_contextual_message(message, emotion, age, age_category, emotion_context)
             
             # Send message to chat
             response = self.chat_session.send_message(contextual_message)
@@ -361,14 +365,18 @@ Recommendations:"""
         self,
         message: str,
         emotion: str,
+        age: Optional[int] = None,
+        age_category: Optional[str] = None,
         emotion_context: Optional[Dict] = None
     ) -> str:
         """
-        Build a message with emotion context for better AI understanding
+        Build a message with emotion and age context for better AI understanding
         
         Args:
             message: User's spoken words
             emotion: Detected facial emotion
+            age: Detected age
+            age_category: Age category (e.g., "Young Adult", "Senior")
             emotion_context: Mismatch analysis from EmotionAnalyzer
             
         Returns:
@@ -379,6 +387,12 @@ Recommendations:"""
         
         # Add facial emotion as subtle context
         parts.append(f"[Facial expression: {emotion}]")
+        
+        # Add age context for tailored medical advice
+        if age_category:
+            age_guidance = self._get_age_guidance(age_category)
+            if age_guidance:
+                parts.append(f"[Patient age group: {age_category}. {age_guidance}]")
         
         # Add conversation stage reminder
         exchange_count = len([msg for msg in self.conversation_history if msg["role"] == "user"])
@@ -401,6 +415,26 @@ Recommendations:"""
                     parts.append(f"[Note: Patient expressing concerns but appears {emotion}. Likely manageable issue.]")
         
         return "\n".join(parts)
+    
+    def _get_age_guidance(self, age_category: str) -> str:
+        """
+        Get age-appropriate guidance for the AI
+        
+        Args:
+            age_category: Age category (e.g., "Child", "Young Adult", "Senior")
+            
+        Returns:
+            Guidance string for the AI
+        """
+        age_guidance_map = {
+            "Child": "Use simple language. Consider parental involvement. Focus on common childhood issues.",
+            "Teenager": "Be supportive and non-judgmental. Consider school stress, growth, and mental health.",
+            "Young Adult": "Consider lifestyle factors like work stress, exercise, diet, and sleep habits.",
+            "Middle-Aged": "Consider chronic conditions, family history, stress management, and preventive care.",
+            "Senior": "Consider age-related conditions, medications, mobility, and chronic disease management.",
+            "Elderly": "Be extra clear and patient. Consider multiple medications, mobility issues, and caregiver involvement."
+        }
+        return age_guidance_map.get(age_category, "")
     
     def _add_to_history(self, role: str, content: str):
         """Add message to conversation history"""

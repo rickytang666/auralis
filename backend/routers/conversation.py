@@ -19,7 +19,7 @@ async def chat(request: ChatRequest):
     Process user message and return AI doctor response
     
     Args:
-        request: ChatRequest containing message and detected emotion
+        request: ChatRequest containing message, detected emotion, and age
         
     Returns:
         ChatResponse with AI response and follow-up flag
@@ -31,10 +31,12 @@ async def chat(request: ChatRequest):
             detected_emotion=request.emotion
         )
         
-        # Get response from Gemini
+        # Get response from Gemini with age context
         response = await gemini_service.get_response(
             message=request.message,
             emotion=request.emotion,
+            age=request.age,
+            age_category=request.age_category,
             emotion_context=emotion_context
         )
         

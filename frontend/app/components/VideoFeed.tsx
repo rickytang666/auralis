@@ -12,7 +12,11 @@ import {
 } from "@/lib/faceDetection";
 
 interface VideoFeedProps {
-  onEmotionDetected?: (emotion: string) => void;
+  onEmotionDetected?: (
+    emotion: string,
+    age?: number,
+    ageCategory?: string
+  ) => void;
 }
 
 export default function VideoFeed({ onEmotionDetected }: VideoFeedProps) {
@@ -27,6 +31,11 @@ export default function VideoFeed({ onEmotionDetected }: VideoFeedProps) {
   const [currentEmotion, setCurrentEmotion] = useState<string>("neutral");
   const [confidence, setConfidence] = useState<number>(0);
   const [modelsLoaded, setModelsLoaded] = useState(false);
+  const [currentAge, setCurrentAge] = useState<number | null>(null);
+  const [ageCategory, setAgeCategory] = useState<string | null>(null);
+  const ageSamples = useRef<number[]>([]); // Collect age samples
+  const ageLocked = useRef<boolean>(false); // Lock age after sampling complete
+  const AGE_SAMPLE_COUNT = 3; // Number of samples to collect
 
   useEffect(() => {
     initializeVideoFeed();
@@ -157,13 +166,56 @@ export default function VideoFeed({ onEmotionDetected }: VideoFeedProps) {
         );
         console.log("  - All emotions:", result.allEmotions);
 
+        // Collect age samples for the first few detections
+        if (!ageLocked.current && result.age !== undefined) {
+          ageSamples.current.push(result.age);
+          console.log(
+            `👤 Age sample ${ageSamples.current.length}/${AGE_SAMPLE_COUNT}: ${result.age}`
+          );
+
+          // Once we have enough samples, calculate average and lock
+          if (ageSamples.current.length >= AGE_SAMPLE_COUNT) {
+            const avgAge = Math.round(
+              ageSamples.current.reduce((sum, age) => sum + age, 0) /
+                ageSamples.current.length
+            );
+
+            // Categorize the average age
+            let category = "Young Adult";
+            if (avgAge < 13) category = "Child";
+            else if (avgAge < 20) category = "Teenager";
+            else if (avgAge < 36) category = "Young Adult";
+            else if (avgAge < 56) category = "Middle-Aged";
+            else if (avgAge < 71) category = "Senior";
+            else category = "Elderly";
+
+            console.log(
+              `👤 AGE LOCKED: ${avgAge} (${category}) - averaged from [${ageSamples.current.join(
+                ", "
+              )}]`
+            );
+            setCurrentAge(avgAge);
+            setAgeCategory(category);
+            ageLocked.current = true;
+
+            // Notify parent component with finalized age
+            onEmotionDetected?.(result.emotion, avgAge, category);
+          }
+        } else if (ageLocked.current) {
+          // After age is locked, only send emotion updates with locked age
+          onEmotionDetected?.(
+            result.emotion,
+            currentAge ?? undefined,
+            ageCategory ?? undefined
+          );
+        }
+
+        // Always update emotion
         setCurrentEmotion(result.emotion);
         setConfidence(result.confidence);
-
-        // Notify parent component
-        onEmotionDetected?.(result.emotion);
       },
-      1000 // Detect every 1 second
+      1000, // Detect every 1 second
+      () => !ageLocked.current // Only detect age until locked
     );
   };
 
@@ -188,19 +240,6 @@ export default function VideoFeed({ onEmotionDetected }: VideoFeedProps) {
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
-  };
-
-  const getEmotionColor = (emotion: string): string => {
-    const colors: Record<string, string> = {
-      happy: "text-yellow-400",
-      sad: "text-blue-400",
-      angry: "text-red-400",
-      fearful: "text-purple-400",
-      surprised: "text-pink-400",
-      disgusted: "text-green-400",
-      neutral: "text-gray-400",
-    };
-    return colors[emotion] || "text-gray-400";
   };
 
   return (
@@ -251,34 +290,6 @@ export default function VideoFeed({ onEmotionDetected }: VideoFeedProps) {
                 />
               </svg>
               <p className="text-red-400 text-xs">{error}</p>
-            </div>
-          </div>
-        )}
-
-        {/* Emotion indicator overlay */}
-        {!isLoading && !error && (
-          <div className="absolute bottom-2 left-2 right-2">
-            <div className="bg-black/60 backdrop-blur-sm rounded-lg px-2 py-1">
-              <div className="flex items-center justify-between">
-                <span className="text-white text-xs font-medium">Emotion:</span>
-                <span
-                  className={`text-xs font-bold capitalize ${getEmotionColor(
-                    currentEmotion
-                  )}`}
-                >
-                  {currentEmotion}
-                </span>
-              </div>
-              {confidence > 0 && (
-                <div className="mt-1">
-                  <div className="w-full bg-gray-700 rounded-full h-1">
-                    <div
-                      className="bg-white h-1 rounded-full transition-all"
-                      style={{ width: `${confidence * 100}%` }}
-                    />
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         )}

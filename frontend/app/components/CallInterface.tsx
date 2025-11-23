@@ -44,6 +44,8 @@ export default function CallInterface({
   const [currentEmotion, setCurrentEmotion] = useState<string>("neutral");
   const [emotionHistory, setEmotionHistory] = useState<string[]>([]); // Track emotions during speaking
   const [showEndPrompt, setShowEndPrompt] = useState(false); // Show end consultation prompt
+  const [currentAge, setCurrentAge] = useState<number | null>(null);
+  const [ageCategory, setAgeCategory] = useState<string | null>(null);
 
   // Function to stop all audio and end call
   const handleEndCall = () => {
@@ -219,6 +221,17 @@ export default function CallInterface({
               </span>
             </div>
           </div>
+          {/* Age Category Indicator */}
+          {ageCategory && (
+            <div className="bg-white/70 backdrop-blur-sm px-4 py-2 rounded-full shadow-lg border border-white/50">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-gray-600">Age:</span>
+                <span className="text-sm font-bold text-cyan-600">
+                  {ageCategory}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
         <div className="w-[100px]"></div> {/* Spacer for centering */}
       </div>
@@ -252,12 +265,19 @@ export default function CallInterface({
         {/* Webcam Feed with Emotion Detection (Bottom Left) */}
         <div className="absolute bottom-6 left-6 w-48 h-36 rounded-xl overflow-hidden shadow-lg border border-white/20 z-10">
           <VideoFeed
-            onEmotionDetected={(emotion) => {
+            onEmotionDetected={(emotion, age, ageCat) => {
               console.log("📤 CallInterface received emotion:", emotion);
               setCurrentEmotion(emotion);
 
               // Track emotion history (keep last 10 emotions)
               setEmotionHistory((prev) => [...prev.slice(-9), emotion]);
+
+              // Update age when received
+              if (age !== undefined && ageCat) {
+                console.log("📤 CallInterface received age:", age, ageCat);
+                setCurrentAge(age);
+                setAgeCategory(ageCat);
+              }
             }}
           />
         </div>
@@ -304,6 +324,8 @@ export default function CallInterface({
             currentEmotion={currentEmotion}
             emotionHistory={emotionHistory}
             onClearEmotionHistory={() => setEmotionHistory([])}
+            currentAge={currentAge}
+            ageCategory={ageCategory}
           />
         </div>
 

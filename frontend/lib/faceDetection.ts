@@ -8,6 +8,8 @@ export interface EmotionResult {
   emotion: string;
   confidence: number;
   allEmotions: Record<string, number>;
+  age?: number;  // Raw age estimate (e.g., 34.5)
+  ageCategory?: string;  // Categorized age (e.g., "Young Adult")
 }
 
 // Use CDN for models - no manual download needed
@@ -20,14 +22,15 @@ export async function loadFaceDetectionModels(modelPath: string = MODEL_URL): Pr
   try {
     console.log('Loading face detection models from CDN...');
     
-    // Load required models for face detection and emotion recognition
+    // Load required models for face detection, emotion recognition, and age detection
     await Promise.all([
       faceapi.nets.tinyFaceDetector.loadFromUri(modelPath),
       faceapi.nets.faceExpressionNet.loadFromUri(modelPath),
       faceapi.nets.faceLandmark68Net.loadFromUri(modelPath),
+      faceapi.nets.ageGenderNet.loadFromUri(modelPath),
     ]);
     
-    console.log('✓ Face detection models loaded successfully');
+    console.log('✓ Face detection models loaded successfully (including age detection)');
   } catch (error) {
     console.error('Failed to load face detection models:', error);
     throw error;
@@ -88,6 +91,18 @@ function getDominantEmotion(expressions: faceapi.FaceExpressions): {
 }
 
 /**
+ * Categorize age into defined ranges
+ */
+function categorizeAge(age: number): string {
+  if (age < 12) return "Child";
+  if (age < 18) return "Teenager";
+  if (age < 36) return "Young Adult";
+  if (age < 56) return "Middle-Aged";
+  if (age < 71) return "Senior";
+  return "Elderly";
+}
+
+/**
  * Draw face detection overlay on canvas
  */
 export function drawDetections(
@@ -129,7 +144,8 @@ export function startEmotionDetection(
   videoElement: HTMLVideoElement,
   canvasElement: HTMLCanvasElement | null,
   onEmotionDetected: (result: EmotionResult) => void,
-  intervalMs: number = 1000
+  intervalMs: number = 1000,
+  detectAge: () => boolean = () => true // Callback to check if age detection should run
 ): () => void {
   let isRunning = true;
   
@@ -144,14 +160,27 @@ export function startEmotionDetection(
         return;
       }
       
-      // Detect emotions with landmarks
-      const detections = await faceapi
-        .detectSingleFace(videoElement, new faceapi.TinyFaceDetectorOptions())
-        .withFaceLandmarks()
-        .withFaceExpressions();
+      // Build detection chain conditionally
+      const shouldDetectAge = detectAge();
+      
+      let detections;
+      if (shouldDetectAge) {
+        // Detect with age
+        detections = await faceapi
+          .detectSingleFace(videoElement, new faceapi.TinyFaceDetectorOptions())
+          .withFaceLandmarks()
+          .withFaceExpressions()
+          .withAgeAndGender();
+      } else {
+        // Detect without age (faster)
+        detections = await faceapi
+          .detectSingleFace(videoElement, new faceapi.TinyFaceDetectorOptions())
+          .withFaceLandmarks()
+          .withFaceExpressions();
+      }
       
       if (detections) {
-        const expressions = detections.expressions;
+        const expressions = (detections as any).expressions;
         const dominantEmotion = getDominantEmotion(expressions);
         
         const result: EmotionResult = {
@@ -163,11 +192,20 @@ export function startEmotionDetection(
           }, {} as Record<string, number>)
         };
         
+        // Only process age if it was detected
+        if (shouldDetectAge && (detections as any).age !== undefined) {
+          const age = Math.round((detections as any).age);
+          const ageCategory = categorizeAge(age);
+          result.age = age;
+          result.ageCategory = ageCategory;
+          console.log(`👤 AGE DETECTED: ${age} years old (${ageCategory})`);
+        }
+        
         onEmotionDetected(result);
         
         // Draw detections on canvas if provided
         if (canvasElement) {
-          drawDetections(canvasElement, detections, videoElement);
+          drawDetections(canvasElement, detections as any, videoElement);
         }
       } else {
         console.log("⚠️  No face detected in frame");

@@ -17,6 +17,8 @@ interface AudioControllerProps {
   currentEmotion?: string; // Current emotion detected from webcam
   emotionHistory?: string[]; // History of emotions detected during conversation
   onClearEmotionHistory?: () => void; // Callback to clear emotion history after use
+  currentAge?: number | null; // Current age detected from webcam
+  ageCategory?: string | null; // Age category (e.g., "Young Adult")
 }
 
 export default function AudioController({
@@ -28,6 +30,8 @@ export default function AudioController({
   currentEmotion = "neutral",
   emotionHistory = [],
   onClearEmotionHistory,
+  currentAge = null,
+  ageCategory = null,
 }: AudioControllerProps) {
   const [isListening, setIsListening] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -226,6 +230,8 @@ export default function AudioController({
         body: JSON.stringify({
           message: userMessage,
           emotion: dominantEmotion, // Use dominant emotion from speaking period
+          age: currentAge,
+          age_category: ageCategory,
         }),
       });
 
