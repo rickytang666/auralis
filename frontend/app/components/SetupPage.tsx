@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { API_BASE_URL } from "../../lib/config";
 import Avatar from "./Avatar";
@@ -21,17 +21,19 @@ interface SetupPageProps {
 }
 
 const AVATAR_OPTIONS = [
-  { id: "doctorm", name: "Doctor M", color: "bg-blue-100", image: doctormImg },
-  { id: "doctorf", name: "Doctor F", color: "bg-purple-100", image: doctorfImg },
+  { id: "doctorm", name: "Felix", color: "bg-blue-100", image: doctormImg },
+  { id: "doctorf", name: "Matilda", color: "bg-purple-100", image: doctorfImg },
   { id: "baymax", name: "Baymax", color: "bg-red-100", image: baymaxImg },
 ];
 
 
 
 const BG_OPTIONS = [
-  { id: "bg1", color: "from-blue-50 to-indigo-50" },
-  { id: "bg2", color: "from-rose-50 to-orange-50" },
-  { id: "bg3", color: "from-emerald-50 to-teal-50" },
+  { id: "bg1", color: "bg-blue-200" },
+  { id: "bg2", color: "bg-rose-200" },
+  { id: "bg3", color: "bg-emerald-200" },
+  { id: "bg4", color: "bg-purple-200" },
+  { id: "bg5", color: "bg-amber-200" },
 ];
 
 export default function SetupPage({
@@ -44,6 +46,8 @@ export default function SetupPage({
   selectedVoice,
   setSelectedVoice,
 }: SetupPageProps) {
+  const isInitialLoad = useRef(true);
+
   // Voice options mapped by avatar ID
   const VOICE_MAP: Record<string, { id: string; name: string }[]> = {
     doctorm: [
@@ -72,6 +76,8 @@ export default function SetupPage({
     const defaultVoice = VOICE_MAP[avatarId]?.[0]?.id;
     if (defaultVoice) {
       setSelectedVoice(defaultVoice);
+      // Play preview when avatar changes
+      playVoicePreview(defaultVoice);
     }
   };
 
@@ -100,16 +106,37 @@ export default function SetupPage({
     }
   };
 
+  // Play voice preview on component mount
+  useEffect(() => {
+    if (isInitialLoad.current) {
+      playVoicePreview(selectedVoice);
+      isInitialLoad.current = false;
+    }
+  }, [selectedVoice]);
+
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 md:p-8">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 md:p-8 relative overflow-hidden">
+      {/* Grid Background */}
+      <div 
+        className="absolute inset-0"
+        style={{
+          backgroundImage: `
+            linear-gradient(to right, #9ca3af 1px, transparent 1px),
+            linear-gradient(to bottom, #9ca3af 1px, transparent 1px)
+          `,
+          backgroundSize: '30px 30px',
+          opacity: 0.3
+        }}
+      />
+      
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="w-full max-w-6xl bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row min-h-[600px]"
+        className="w-full max-w-6xl bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row min-h-[600px] relative z-10"
       >
         {/* Left Side - Avatar Preview */}
         <div
-          className={`w-full md:w-1/2 p-8 flex flex-col items-center justify-center bg-gradient-to-br ${
+          className={`w-full md:w-1/2 p-8 flex flex-col items-center justify-center ${
             BG_OPTIONS.find((b) => b.id === selectedBg)?.color
           } transition-colors duration-500 relative`}
         >
@@ -126,7 +153,7 @@ export default function SetupPage({
             onClick={onConnect}
             className="mt-8 w-full max-w-xs bg-black text-white py-4 rounded-xl font-semibold text-lg shadow-lg hover:shadow-xl transition-all flex items-center justify-center space-x-2 group z-10"
           >
-            <span>Connect with AIDoc</span>
+            <span>Connect with Doctor</span>
             <svg
               className="w-5 h-5 group-hover:translate-x-1 transition-transform"
               fill="none"
@@ -158,7 +185,7 @@ export default function SetupPage({
           <div className="space-y-8">
             {/* Avatar Selection */}
             <div>
-              <h3 className="text-lg font-semibold mb-4 text-black">Avatar</h3>
+              <h3 className="text-lg font-semibold mb-4 text-black">Choose your Doctor</h3>
               <div className="flex space-x-4">
                 {AVATAR_OPTIONS.map((avatar) => (
                   <button
@@ -213,7 +240,9 @@ export default function SetupPage({
 
             {/* Voice Selection */}
             <div>
-              <h3 className="text-lg font-semibold mb-4 text-black">Voice</h3>
+              <h3 className="text-lg font-semibold mb-4 text-black">
+                Choose {AVATAR_OPTIONS.find((a) => a.id === selectedAvatar)?.name}'s Voice
+              </h3>
               <div className="flex space-x-4">
                 {currentVoiceOptions.map((voice) => (
                   <button
