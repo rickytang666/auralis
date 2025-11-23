@@ -293,16 +293,20 @@ export default function AudioController({
           currentAudioRef.current.src = "";
         }
 
+        console.log("AudioController: Starting TTS playback");
+
         // Emit event for avatar
         window.dispatchEvent(new CustomEvent("audioPlaybackStart"));
 
         const audio = await playAudio(
           audioUrl,
           () => {
+            console.log("AudioController: Audio started playing");
             setIsPlaying(true);
             onSpeakingStateChange?.(true);
           },
           () => {
+            console.log("AudioController: Audio ended");
             setIsPlaying(false);
             onSpeakingStateChange?.(false);
             window.dispatchEvent(new CustomEvent("audioPlaybackEnd"));
@@ -326,6 +330,7 @@ export default function AudioController({
             }
           },
           (error) => {
+            console.error("AudioController: Audio error:", error);
             setError(error);
             setIsPlaying(false);
             onSpeakingStateChange?.(false);
@@ -349,6 +354,7 @@ export default function AudioController({
 
         // Track the current audio element
         currentAudioRef.current = audio;
+        console.log("AudioController: Audio element created and tracked");
       }
     } catch (err) {
       console.error("TTS error:", err);

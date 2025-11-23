@@ -9,6 +9,7 @@ import VideoFeed from "./VideoFeed";
 interface CallInterfaceProps {
   onEndCall: (messages: Message[]) => void;
   selectedBg: string;
+  avatarId: string;
 }
 
 interface Message {
@@ -26,6 +27,7 @@ const BG_OPTIONS = [
 export default function CallInterface({
   onEndCall,
   selectedBg,
+  avatarId,
 }: CallInterfaceProps) {
   const [elapsedTime, setElapsedTime] = useState(0);
   const [messages, setMessages] = useState<Message[]>([
@@ -68,6 +70,8 @@ export default function CallInterface({
     } catch (e) {
       console.log("No active speech recognition to stop");
     }
+
+    setIsSpeaking(false);
 
     // End the call
     onEndCall(messages);
@@ -160,6 +164,7 @@ export default function CallInterface({
   };
 
   const handleSpeakingStateChange = (speaking: boolean) => {
+    console.log("CallInterface: Speaking state changed to:", speaking);
     setIsSpeaking(speaking);
   };
 
@@ -238,6 +243,8 @@ export default function CallInterface({
               background={bgClass}
               onLoad={() => setIsAvatarLoaded(true)}
               fullscreen={true}
+              isSpeaking={isSpeaking}
+              avatarId={avatarId}
             />
           </div>
         </div>

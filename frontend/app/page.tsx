@@ -16,6 +16,7 @@ type ViewState = "landing" | "setup" | "call" | "summary";
 export default function Home() {
   const [currentView, setCurrentView] = useState<ViewState>("landing");
   const [selectedBg, setSelectedBg] = useState("bg1"); // Default background ID
+  const [selectedAvatar, setSelectedAvatar] = useState("doctorm");
   const [conversationData, setConversationData] = useState<any[]>([]); // Store conversation for summary
 
   const renderView = () => {
@@ -29,6 +30,8 @@ export default function Home() {
             selectedBg={selectedBg}
             setSelectedBg={setSelectedBg}
             onBack={() => setCurrentView("landing")}
+            selectedAvatar={selectedAvatar}
+            setSelectedAvatar={setSelectedAvatar}
           />
         );
       case "call":
@@ -39,6 +42,7 @@ export default function Home() {
               setCurrentView("summary");
             }}
             selectedBg={selectedBg}
+            avatarId={selectedAvatar}
           />
         );
       case "summary":

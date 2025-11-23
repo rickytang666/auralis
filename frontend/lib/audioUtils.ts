@@ -124,42 +124,68 @@ export function base64ToBlob(base64: string, mimeType: string = 'audio/mpeg'): s
 export class AudioAnalyzer {
   private audioContext: AudioContext;
   private analyser: AnalyserNode;
-  private dataArray: Uint8Array;
+  private freqData: Uint8Array;
+  private timeDomainData: Uint8Array;
+  private source: MediaElementAudioSourceNode | null = null;
   
   constructor() {
     this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
     this.analyser = this.audioContext.createAnalyser();
     this.analyser.fftSize = 256;
     const bufferLength = this.analyser.frequencyBinCount;
-    this.dataArray = new Uint8Array(bufferLength);
+    this.freqData = new Uint8Array(bufferLength);
+    this.timeDomainData = new Uint8Array(this.analyser.fftSize);
   }
   
   /**
    * Connect audio element to analyzer
    */
   connectAudio(audioElement: HTMLAudioElement): void {
-    const source = this.audioContext.createMediaElementSource(audioElement);
-    source.connect(this.analyser);
+    if (this.source) {
+      this.source.disconnect();
+    }
+    this.source = this.audioContext.createMediaElementSource(audioElement);
+    this.source.connect(this.analyser);
     this.analyser.connect(this.audioContext.destination);
+  }
+
+  disconnect(): void {
+    if (this.source) {
+      try {
+        this.source.disconnect();
+      } catch (error) {
+        console.warn('AudioAnalyzer disconnect error', error);
+      }
+      this.source = null;
+    }
+    try {
+      this.analyser.disconnect();
+    } catch (error) {
+      console.warn('Analyser disconnect error', error);
+    }
+    this.audioContext.close();
   }
   
   /**
    * Get current audio volume (0-1)
    */
   getVolume(): number {
-    const data = new Uint8Array(this.analyser.frequencyBinCount);
-    this.analyser.getByteFrequencyData(data);
-    const sum = data.reduce((a, b) => a + b, 0);
-    return sum / (data.length * 255);
+    this.analyser.getByteTimeDomainData(this.timeDomainData);
+    let sumSquares = 0;
+    for (let i = 0; i < this.timeDomainData.length; i++) {
+      const sample = (this.timeDomainData[i] - 128) / 128; // normalize -1..1
+      sumSquares += sample * sample;
+    }
+    const rms = Math.sqrt(sumSquares / this.timeDomainData.length);
+    return Math.min(1, rms * 4); // boost to make speech movement visible
   }
   
   /**
    * Get frequency data for visualization
    */
   getFrequencyData(): Uint8Array {
-    const data = new Uint8Array(this.analyser.frequencyBinCount);
-    this.analyser.getByteFrequencyData(data);
-    return data;
+    this.analyser.getByteFrequencyData(this.freqData);
+    return this.freqData;
   }
 }
 
