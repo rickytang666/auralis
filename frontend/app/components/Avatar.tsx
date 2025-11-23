@@ -215,6 +215,7 @@ export default function Avatar({ isSpeaking = false, background, avatarId = "doc
       const modelMap: Record<string, string> = {
         "doctorm": "/models/DoctorM.glb",
         "doctorf": "/models/DoctorF.glb",
+        "baymax": "/models/Baymax.glb",
         "joe": "/models/DoctorM.glb", // fallback
         "mark": "/models/DoctorM.glb",
         "sasha": "/models/DoctorF.glb"
@@ -242,6 +243,11 @@ export default function Avatar({ isSpeaking = false, background, avatarId = "doc
       model.position.x = -center.x;
       model.position.y = -box.min.y;
       model.position.z = -center.z;
+      
+      // Special case for Baymax - move up 1 unit
+      if (avatarId.toLowerCase() === "baymax") {
+        model.position.y += .3;
+      }
       
       // Scale based on fullscreen mode
       const maxDim = Math.max(size.x, size.y, size.z);

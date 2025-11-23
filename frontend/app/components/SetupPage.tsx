@@ -16,6 +16,7 @@ interface SetupPageProps {
 const AVATAR_OPTIONS = [
   { id: "doctorm", name: "Doctor M", color: "bg-blue-100" },
   { id: "doctorf", name: "Doctor F", color: "bg-purple-100" },
+  { id: "baymax", name: "Baymax", color: "bg-red-100" },
 ];
 
 const VOICE_OPTIONS = [
