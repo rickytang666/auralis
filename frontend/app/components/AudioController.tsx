@@ -19,6 +19,7 @@ interface AudioControllerProps {
   onClearEmotionHistory?: () => void; // Callback to clear emotion history after use
   currentAge?: number | null; // Current age detected from webcam
   ageCategory?: string | null; // Age category (e.g., "Young Adult")
+  voiceId?: string; // Selected voice ID for TTS
 }
 
 export default function AudioController({
@@ -32,6 +33,7 @@ export default function AudioController({
   onClearEmotionHistory,
   currentAge = null,
   ageCategory = null,
+  voiceId,
 }: AudioControllerProps) {
   const [isListening, setIsListening] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -280,7 +282,7 @@ export default function AudioController({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text, voice_id: voiceId }),
       });
 
       if (!response.ok) {

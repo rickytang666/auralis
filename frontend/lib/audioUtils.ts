@@ -27,7 +27,7 @@ export class AudioRecorder {
 
       this.mediaRecorder.start();
     } catch (error) {
-      throw new Error('Failed to start recording: ' + error);
+      throw new Error('Failed to start recording: ' + (error instanceof Error ? error.message : String(error)));
     }
   }
 
@@ -102,34 +102,24 @@ export async function playAudio(
   }
 }
 
-/**
- * Convert base64 to blob URL
- */
-export function base64ToBlob(base64: string, mimeType: string = 'audio/mpeg'): string {
-  const byteCharacters = atob(base64);
-  const byteNumbers = new Array(byteCharacters.length);
-  
-  for (let i = 0; i < byteCharacters.length; i++) {
-    byteNumbers[i] = byteCharacters.charCodeAt(i);
-  }
-  
-  const byteArray = new Uint8Array(byteNumbers);
-  const blob = new Blob([byteArray], { type: mimeType });
-  return URL.createObjectURL(blob);
-}
+// ...
 
-/**
- * Analyze audio frequency for lip-sync
- */
 export class AudioAnalyzer {
-  private audioContext: AudioContext;
-  private analyser: AnalyserNode;
+  private audioContext: AudioContext | null = null;
+  private analyser: AnalyserNode | null = null;
   private freqData: Uint8Array;
   private timeDomainData: Uint8Array;
   private source: MediaElementAudioSourceNode | null = null;
   
   constructor() {
-    this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    if (typeof window === 'undefined') {
+      this.freqData = new Uint8Array(0);
+      this.timeDomainData = new Uint8Array(0);
+      return;
+    }
+
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    this.audioContext = new AudioContextClass();
     this.analyser = this.audioContext.createAnalyser();
     this.analyser.fftSize = 256;
     const bufferLength = this.analyser.frequencyBinCount;
@@ -141,6 +131,8 @@ export class AudioAnalyzer {
    * Connect audio element to analyzer
    */
   connectAudio(audioElement: HTMLAudioElement): void {
+    if (!this.audioContext || !this.analyser) return;
+
     if (this.source) {
       this.source.disconnect();
     }
@@ -159,18 +151,20 @@ export class AudioAnalyzer {
       this.source = null;
     }
     try {
-      this.analyser.disconnect();
+      this.analyser?.disconnect();
     } catch (error) {
       console.warn('Analyser disconnect error', error);
     }
-    this.audioContext.close();
+    this.audioContext?.close();
   }
   
   /**
    * Get current audio volume (0-1)
    */
   getVolume(): number {
-    this.analyser.getByteTimeDomainData(this.timeDomainData);
+    if (!this.analyser) return 0;
+
+    this.analyser.getByteTimeDomainData(this.timeDomainData as any);
     let sumSquares = 0;
     for (let i = 0; i < this.timeDomainData.length; i++) {
       const sample = (this.timeDomainData[i] - 128) / 128; // normalize -1..1
@@ -184,7 +178,9 @@ export class AudioAnalyzer {
    * Get frequency data for visualization
    */
   getFrequencyData(): Uint8Array {
-    this.analyser.getByteFrequencyData(this.freqData);
+    if (!this.analyser) return new Uint8Array(0);
+
+    this.analyser.getByteFrequencyData(this.freqData as any);
     return this.freqData;
   }
 }
@@ -196,7 +192,7 @@ export async function requestMicrophoneAccess(): Promise<MediaStream> {
   try {
     return await navigator.mediaDevices.getUserMedia({ audio: true });
   } catch (error) {
-    throw new Error('Microphone access denied');
+    throw new Error('Microphone access denied: ' + (error instanceof Error ? error.message : String(error)));
   }
 }
 

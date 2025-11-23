@@ -10,6 +10,8 @@ interface CallInterfaceProps {
   onEndCall: (messages: Message[]) => void;
   selectedBg: string;
   avatarId: string;
+  selectedAvatar?: string;
+  selectedVoice?: string;
 }
 
 interface Message {
@@ -28,6 +30,8 @@ export default function CallInterface({
   onEndCall,
   selectedBg,
   avatarId,
+  selectedAvatar = "doctorm",
+  selectedVoice,
 }: CallInterfaceProps) {
   const [elapsedTime, setElapsedTime] = useState(0);
   const [messages, setMessages] = useState<Message[]>([
@@ -42,10 +46,14 @@ export default function CallInterface({
   const [shouldStartListening, setShouldStartListening] = useState(false);
   const [isAvatarLoaded, setIsAvatarLoaded] = useState(false);
   const [currentEmotion, setCurrentEmotion] = useState<string>("neutral");
+  const [confidence, setConfidence] = useState<number>(0);
   const [emotionHistory, setEmotionHistory] = useState<string[]>([]); // Track emotions during speaking
   const [showEndPrompt, setShowEndPrompt] = useState(false); // Show end consultation prompt
   const [currentAge, setCurrentAge] = useState<number | null>(null);
   const [ageCategory, setAgeCategory] = useState<string | null>(null);
+
+  // Get doctor name from avatar selection
+  const doctorName = selectedAvatar === "doctorf" ? "Doctor F" : selectedAvatar === "baymax" ? "Baymax" : "Doctor M";
 
   // Function to stop all audio and end call
   const handleEndCall = () => {
@@ -115,7 +123,7 @@ export default function CallInterface({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ text: greeting }),
+        body: JSON.stringify({ text: greeting, voice_id: selectedVoice }),
       });
 
       if (!response.ok) {
@@ -202,36 +210,14 @@ export default function CallInterface({
       <div className="flex justify-between items-center mb-6 z-10">
         <button
           onClick={handleEndCall}
-          className="px-6 py-2 bg-red-500 text-white rounded-full text-sm font-bold hover:bg-red-600 transition-colors shadow-lg hover:shadow-red-200"
+          className="px-6 py-2 bg-rose-400 text-white rounded-full text-sm font-bold hover:bg-rose-500 hover:opacity-90 transition-all shadow-lg hover:shadow-rose-200"
         >
           END CALL
         </button>
         <div className="flex items-center gap-4">
-          <div className="text-2xl font-mono font-medium text-gray-800 bg-white/50 backdrop-blur-sm px-4 py-1 rounded-full">
+          <div className="text-2xl font-serif font-medium text-gray-800 bg-white/50 backdrop-blur-sm px-4 py-1 rounded-full">
             {formatTime(elapsedTime)}
           </div>
-          {/* Real-time Emotion Indicator */}
-          <div className="bg-white/70 backdrop-blur-sm px-4 py-2 rounded-full shadow-lg border border-white/50">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-gray-600">
-                Emotion:
-              </span>
-              <span className="text-sm font-bold text-blue-600 capitalize animate-pulse">
-                {currentEmotion}
-              </span>
-            </div>
-          </div>
-          {/* Age Category Indicator */}
-          {ageCategory && (
-            <div className="bg-white/70 backdrop-blur-sm px-4 py-2 rounded-full shadow-lg border border-white/50">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-gray-600">Age:</span>
-                <span className="text-sm font-bold text-cyan-600">
-                  {ageCategory}
-                </span>
-              </div>
-            </div>
-          )}
         </div>
         <div className="w-[100px]"></div> {/* Spacer for centering */}
       </div>
@@ -262,28 +248,108 @@ export default function CallInterface({
           </div>
         </div>
 
-        {/* Webcam Feed with Emotion Detection (Bottom Left) */}
-        <div className="absolute bottom-6 left-6 w-48 h-36 rounded-xl overflow-hidden shadow-lg border border-white/20 z-10">
-          <VideoFeed
-            onEmotionDetected={(emotion, age, ageCat) => {
-              console.log("📤 CallInterface received emotion:", emotion);
-              setCurrentEmotion(emotion);
 
-              // Track emotion history (keep last 10 emotions)
-              setEmotionHistory((prev) => [...prev.slice(-9), emotion]);
+        {/* Webcam Feed with Emotion Detection (Bottom Left) - Resized (25% smaller) */}
+        <div className="absolute bottom-24 left-8 z-10">
+          {/* Webcam container - 300x225 (75% of 400x300) */}
+          <div className="w-[300px] h-[225px] rounded-2xl overflow-hidden shadow-2xl border-2 border-white/30 backdrop-blur-sm">
+            <VideoFeed
+              onEmotionDetected={(emotion, age, ageCat) => {
+                console.log("📤 CallInterface received emotion:", emotion);
+                setCurrentEmotion(emotion);
 
-              // Update age when received
-              if (age !== undefined && ageCat) {
-                console.log("📤 CallInterface received age:", age, ageCat);
-                setCurrentAge(age);
-                setAgeCategory(ageCat);
-              }
-            }}
-          />
+                // Track emotion history (keep last 10 emotions)
+                setEmotionHistory((prev) => [...prev.slice(-9), emotion]);
+
+                // Update age when received
+                if (age !== undefined && ageCat) {
+                  console.log("📤 CallInterface received age:", age, ageCat);
+                  setCurrentAge(age);
+                  setAgeCategory(ageCat);
+                }
+              }}
+              onConfidenceUpdate={(conf) => {
+                setConfidence(conf);
+              }}
+            />
+          </div>
+
+          {/* Confidence box below webcam - with emotion, confidence bar, and age */}
+          <div className="mt-4 w-[300px]">
+            <div className="bg-gray-900/90 backdrop-blur-md rounded-xl px-5 py-4 border border-white/20 shadow-xl">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-white text-sm font-semibold">
+                  Emotion:
+                </span>
+                <span
+                  className={`text-base font-bold capitalize ${
+                    currentEmotion === "happy"
+                      ? "text-yellow-400"
+                      : currentEmotion === "sad"
+                      ? "text-blue-400"
+                      : currentEmotion === "angry"
+                      ? "text-red-400"
+                      : currentEmotion === "fearful"
+                      ? "text-purple-400"
+                      : currentEmotion === "surprised"
+                      ? "text-pink-400"
+                      : currentEmotion === "disgusted"
+                      ? "text-green-400"
+                      : "text-gray-400"
+                  }`}
+                >
+                  {currentEmotion}
+                </span>
+              </div>
+              
+              {/* Confidence label and bar */}
+              <div className="mb-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-white/70 text-xs font-medium">
+                    Confidence
+                  </span>
+                  <span className="text-white text-xs font-bold">
+                    {(confidence * 100).toFixed(0)}%
+                  </span>
+                </div>
+                <div className="w-full bg-gray-700/50 rounded-full h-2.5 overflow-hidden">
+                  <div
+                    className={`h-2.5 rounded-full transition-all duration-500 ${
+                      currentEmotion === "happy"
+                        ? "bg-gradient-to-r from-yellow-400 to-yellow-300"
+                        : currentEmotion === "sad"
+                        ? "bg-gradient-to-r from-blue-400 to-blue-300"
+                        : currentEmotion === "angry"
+                        ? "bg-gradient-to-r from-red-400 to-red-300"
+                        : currentEmotion === "fearful"
+                        ? "bg-gradient-to-r from-purple-400 to-purple-300"
+                        : currentEmotion === "surprised"
+                        ? "bg-gradient-to-r from-pink-400 to-pink-300"
+                        : currentEmotion === "disgusted"
+                        ? "bg-gradient-to-r from-green-400 to-green-300"
+                        : "bg-gradient-to-r from-gray-400 to-gray-300"
+                    }`}
+                    style={{ width: `${confidence * 100}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Age group display */}
+              <div className="flex items-center justify-between pt-2 border-t border-white/10">
+                <span className="text-white/70 text-xs font-medium">
+                  Estimated Age
+                </span>
+                <span className="text-cyan-400 text-sm font-bold">
+                  {ageCategory || "Detecting..."}
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
 
+
         {/* Right Side - Transcript Overlay */}
-        <div className="absolute right-0 top-0 bottom-0 w-80 p-6 z-10 flex flex-col justify-center pointer-events-none">
+        <div className="absolute right-0 top-0 bottom-0 w-96 p-4 pr-2 z-10 flex flex-col justify-center pointer-events-none">
           <div className="bg-white/80 backdrop-blur-md rounded-3xl shadow-xl border border-white/50 p-6 h-[600px] flex flex-col pointer-events-auto">
             <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">
               Realtime Transcript
@@ -291,15 +357,23 @@ export default function CallInterface({
 
             <div className="flex-1 overflow-y-auto space-y-4 pr-2">
               {messages.map((msg, idx) => (
-                <div
-                  key={idx}
-                  className={`p-3 rounded-2xl max-w-[90%] ${
-                    msg.role === "assistant"
-                      ? "bg-blue-100/80 rounded-tl-none"
-                      : "bg-gray-100/80 rounded-tr-none ml-auto"
-                  }`}
-                >
-                  <p className="text-sm text-gray-800">{msg.content}</p>
+                <div key={idx} className="space-y-1">
+                  {/* Speaker label */}
+                  <div className={`text-xs font-semibold ${
+                    msg.role === "assistant" ? "text-blue-600" : "text-gray-600"
+                  }`}>
+                    {msg.role === "assistant" ? doctorName : "User"}
+                  </div>
+                  {/* Message bubble */}
+                  <div
+                    className={`p-3 rounded-2xl max-w-[90%] ${
+                      msg.role === "assistant"
+                        ? "bg-blue-100/80 rounded-tl-none"
+                        : "bg-gray-100/80 rounded-tr-none ml-auto"
+                    }`}
+                  >
+                    <p className="text-sm text-gray-800">{msg.content}</p>
+                  </div>
                 </div>
               ))}
               {isSpeaking && (
@@ -326,6 +400,7 @@ export default function CallInterface({
             onClearEmotionHistory={() => setEmotionHistory([])}
             currentAge={currentAge}
             ageCategory={ageCategory}
+            voiceId={selectedVoice}
           />
         </div>
 

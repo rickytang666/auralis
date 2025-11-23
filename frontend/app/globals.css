@@ -47,3 +47,37 @@ h1, h2, h3, h4, h5, h6 {
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
+
+@keyframes scan-vertical {
+  0%, 100% {
+    top: 0;
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.5;
+  }
+  50% {
+    top: 100%;
+    opacity: 0.5;
+  }
+  90% {
+    opacity: 0;
+  }
+}
+
+@keyframes scan-horizontal {
+  0%, 100% {
+    left: 0;
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.5;
+  }
+  50% {
+    left: 100%;
+    opacity: 0.5;
+  }
+  90% {
+    opacity: 0;
+  }
+}

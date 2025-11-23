@@ -17,9 +17,12 @@ interface VideoFeedProps {
     age?: number,
     ageCategory?: string
   ) => void;
+  onConfidenceUpdate?: (confidence: number) => void;
 }
 
-export default function VideoFeed({ onEmotionDetected }: VideoFeedProps) {
+type WebcamPhase = "analyzing" | "connected" | "emotion";
+
+export default function VideoFeed({ onEmotionDetected, onConfidenceUpdate }: VideoFeedProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -33,6 +36,7 @@ export default function VideoFeed({ onEmotionDetected }: VideoFeedProps) {
   const [modelsLoaded, setModelsLoaded] = useState(false);
   const [currentAge, setCurrentAge] = useState<number | null>(null);
   const [ageCategory, setAgeCategory] = useState<string | null>(null);
+  const [webcamPhase, setWebcamPhase] = useState<WebcamPhase>("analyzing");
   const ageSamples = useRef<number[]>([]); // Collect age samples
   const ageLocked = useRef<boolean>(false); // Lock age after sampling complete
   const AGE_SAMPLE_COUNT = 3; // Number of samples to collect
@@ -44,6 +48,28 @@ export default function VideoFeed({ onEmotionDetected }: VideoFeedProps) {
       cleanup();
     };
   }, []);
+
+  // Phase transition: analyzing (3s) → connected (2s) → emotion
+  useEffect(() => {
+    if (!isLoading && !error) {
+      // Start with analyzing phase
+      setWebcamPhase("analyzing");
+
+      // After 2 seconds, transition to connected
+      const analyzingTimer = setTimeout(() => {
+        setWebcamPhase("connected");
+
+        // After 2 more seconds, transition to emotion display
+        const connectedTimer = setTimeout(() => {
+          setWebcamPhase("emotion");
+        }, 2000);
+
+        return () => clearTimeout(connectedTimer);
+      }, 2000);
+
+      return () => clearTimeout(analyzingTimer);
+    }
+  }, [isLoading, error]);
 
   const initializeVideoFeed = async () => {
     try {
@@ -213,6 +239,7 @@ export default function VideoFeed({ onEmotionDetected }: VideoFeedProps) {
         // Always update emotion
         setCurrentEmotion(result.emotion);
         setConfidence(result.confidence);
+        onConfidenceUpdate?.(result.confidence);
       },
       1000, // Detect every 1 second
       () => !ageLocked.current // Only detect age until locked
@@ -261,6 +288,76 @@ export default function VideoFeed({ onEmotionDetected }: VideoFeedProps) {
           className="absolute top-0 left-0 w-full h-full pointer-events-none"
           style={{ transform: "scaleX(-1)" }} // Mirror the canvas too
         />
+
+        {/* White Mesh Animation Overlay - Analyzing Phase */}
+        {!isLoading && !error && webcamPhase === "analyzing" && (
+          <div className="absolute inset-0 bg-black/10 backdrop-blur-[1px]">
+            {/* Animated mesh grid - WHITE */}
+            <svg
+              className="absolute inset-0 w-full h-full opacity-40"
+              style={{ mixBlendMode: "screen" }}
+            >
+              <defs>
+                <pattern
+                  id="mesh-grid"
+                  x="0"
+                  y="0"
+                  width="40"
+                  height="40"
+                  patternUnits="userSpaceOnUse"
+                >
+                  <path
+                    d="M 40 0 L 0 0 0 40"
+                    fill="none"
+                    stroke="rgba(255,255,255,0.6)"
+                    strokeWidth="1.5"
+                  />
+                </pattern>
+              </defs>
+              <rect width="100%" height="100%" fill="url(#mesh-grid)">
+                <animateTransform
+                  attributeName="transform"
+                  type="translate"
+                  from="0 0"
+                  to="40 40"
+                  dur="2s"
+                  repeatCount="indefinite"
+                />
+              </rect>
+            </svg>
+
+            {/* Scanning lines - WHITE */}
+            <div className="absolute inset-0 overflow-hidden">
+              <div
+                className="absolute w-full h-1 bg-gradient-to-r from-transparent via-white to-transparent opacity-50"
+                style={{
+                  animation: "scan-vertical 1.5s ease-in-out infinite",
+                }}
+              />
+              <div
+                className="absolute h-full w-1 bg-gradient-to-b from-transparent via-white to-transparent opacity-50"
+                style={{
+                  animation: "scan-horizontal 1.5s ease-in-out infinite",
+                }}
+              />
+            </div>
+
+            {/* Analyzing text - Simple white */}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="bg-black/60 backdrop-blur-sm rounded-xl px-5 py-3 border border-white/30">
+                <div className="flex items-center gap-2">
+                  <div className="relative">
+                    <div className="w-2 h-2 bg-white rounded-full animate-ping absolute" />
+                    <div className="w-2 h-2 bg-white rounded-full" />
+                  </div>
+                  <span className="text-white text-sm font-medium">
+                    Analyzing features...
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Loading state */}
         {isLoading && (

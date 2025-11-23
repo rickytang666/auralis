@@ -17,6 +17,7 @@ export default function Home() {
   const [currentView, setCurrentView] = useState<ViewState>("landing");
   const [selectedBg, setSelectedBg] = useState("bg1"); // Default background ID
   const [selectedAvatar, setSelectedAvatar] = useState("doctorm");
+  const [selectedVoice, setSelectedVoice] = useState("Sq93GQT4X1lKDXsQcixO"); // Default to Felix (Doctor M)
   const [conversationData, setConversationData] = useState<any[]>([]); // Store conversation for summary
 
   const renderView = () => {
@@ -32,6 +33,8 @@ export default function Home() {
             onBack={() => setCurrentView("landing")}
             selectedAvatar={selectedAvatar}
             setSelectedAvatar={setSelectedAvatar}
+            selectedVoice={selectedVoice}
+            setSelectedVoice={setSelectedVoice}
           />
         );
       case "call":
@@ -43,6 +46,8 @@ export default function Home() {
             }}
             selectedBg={selectedBg}
             avatarId={selectedAvatar}
+            selectedAvatar={selectedAvatar}
+            selectedVoice={selectedVoice}
           />
         );
       case "summary":
