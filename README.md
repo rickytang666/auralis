@@ -2,6 +2,7 @@
     <img src="frontend/public/apple-touch-icon.png" alt="Auralis Logo" width="100" height="100">
     <h1>Auralis</h1>
     <p>Your AI-powered virtual doctor</p>
+    <p><strong>🏆 Best AI Application Built with CloudFlare @ Hack Western 2025</strong></p>
 </div>
 
 ---
@@ -57,3 +58,10 @@ cd backend && pip install -r requirements.txt && uvicorn main:app --reload
 ```bash
 cd frontend && npm install && npm run dev
 ```
+
+## Team
+
+- [Ricky Tang](https://www.rickyt.tech)
+- [Abdullah Rajput](https://abrj7.github.io)
+- [Nathan Espejo](https://www.nathanespejo.tech)
+- [Samrath Singh Patpatia](https://www.linkedin.com/in/samrath-singh-patpatia-640a03369/)
